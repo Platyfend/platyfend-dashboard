@@ -1,6 +1,6 @@
 
 import { useState } from "react";
-import { Github, GitBranch, Cloud, Square, Shield, Sparkles, ArrowRight } from "lucide-react";
+import { Github, GitBranch, Cloud, Square, Shield, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 
@@ -9,25 +9,25 @@ const Index = () => {
 
   const authProviders = [
     {
-      name: "Continue with GitHub",
+      name: "Login with GitHub",
       icon: Github,
       onClick: () => console.log("GitHub login"),
       color: "hover:text-gray-900 hover:bg-gray-50"
     },
     {
-      name: "Continue with GitLab",
+      name: "Login with GitLab",
       icon: GitBranch,
       onClick: () => console.log("GitLab login"),
       color: "hover:text-orange-600 hover:bg-orange-50"
     },
     {
-      name: "Continue with Azure DevOps",
+      name: "Login with Azure DevOps",
       icon: Cloud,
       onClick: () => console.log("Azure DevOps login"),
       color: "hover:text-blue-600 hover:bg-blue-50"
     },
     {
-      name: "Continue with Bitbucket",
+      name: "Login with Bitbucket",
       icon: Square,
       onClick: () => console.log("Bitbucket login"),
       color: "hover:text-blue-700 hover:bg-blue-50"
@@ -35,7 +35,7 @@ const Index = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-midnight-50 via-platyfend-50 to-midnight-100 relative overflow-hidden">
+    <div className="h-screen bg-gradient-to-br from-midnight-50 via-platyfend-50 to-midnight-100 relative overflow-hidden">
       {/* Premium background elements */}
       <div className="absolute inset-0">
         <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-platyfend-200/20 rounded-full blur-3xl animate-float"></div>
@@ -43,10 +43,10 @@ const Index = () => {
         <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-gradient-conic from-platyfend-100/10 via-transparent to-midnight-100/10 rounded-full blur-3xl"></div>
       </div>
 
-      <div className="relative flex items-center justify-center min-h-screen p-4">
-        <div className="w-full max-w-md animate-fade-in">
+      <div className="relative flex items-center justify-center h-full p-4">
+        <div className="w-full max-w-lg animate-fade-in">
           {/* Logo and Title */}
-          <div className="text-center mb-12">
+          <div className="text-center mb-10">
             <div className="flex items-center justify-center mb-8">
               <div className="relative">
                 <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-platyfend-500 to-platyfend-700 flex items-center justify-center mr-4 shadow-xl shadow-platyfend-500/25 animate-glow">
@@ -66,12 +66,12 @@ const Index = () => {
               </div>
             </div>
             
-            <div className="space-y-2 mb-10">
+            <div className="space-y-2 mb-8">
               <h2 className="text-2xl font-semibold text-midnight-800 tracking-tight">
-                Welcome back
+                Welcome to Platyfend
               </h2>
               <p className="text-midnight-600 font-medium">
-                Sign in to your secure development environment
+                Access your secure development environment
               </p>
             </div>
 
@@ -123,38 +123,36 @@ const Index = () => {
 
           {/* Enhanced Authentication Card */}
           <Card className="border-0 shadow-2xl shadow-midnight-900/5 bg-white/70 backdrop-blur-md rounded-3xl overflow-hidden">
-            <CardContent className="p-8">
-              <div className="space-y-3">
+            <CardContent className="p-10">
+              <div className="space-y-4">
                 {authProviders.map((provider, index) => (
                   <Button
                     key={provider.name}
                     onClick={provider.onClick}
                     variant="outline"
-                    className={`w-full py-6 px-6 text-left justify-start text-midnight-700 border-midnight-200/50 bg-white/50 backdrop-blur-sm hover:border-platyfend-300 hover:bg-white hover:shadow-lg transition-all duration-300 group rounded-2xl font-medium ${provider.color} transform hover:scale-[1.02] hover:-translate-y-0.5`}
+                    className={`w-full py-8 px-8 text-center justify-center text-lg font-bold text-midnight-700 border-midnight-200/50 bg-white/50 backdrop-blur-sm hover:border-platyfend-300 hover:bg-white hover:shadow-lg transition-all duration-300 group rounded-2xl ${provider.color} transform hover:scale-[1.02] hover:-translate-y-0.5`}
                     style={{ animationDelay: `${index * 100}ms` }}
                   >
-                    <provider.icon className="w-5 h-5 mr-4 text-midnight-600 group-hover:scale-110 transition-transform duration-300" />
+                    <provider.icon className="w-6 h-6 mr-4 text-midnight-600 group-hover:scale-110 transition-transform duration-300" />
                     <span className="flex-1">{provider.name}</span>
-                    <ArrowRight className="w-4 h-4 text-midnight-400 group-hover:text-platyfend-600 group-hover:translate-x-1 transition-all duration-300" />
                   </Button>
                 ))}
               </div>
 
-              {/* Enhanced Sign Up Section */}
-              <div className="relative mt-8 pt-8">
+              {/* Enhanced Sign Up Section - Inline */}
+              <div className="relative mt-10 pt-8">
                 <div className="absolute top-0 left-1/2 transform -translate-x-1/2 w-16 h-px bg-gradient-to-r from-transparent via-midnight-300 to-transparent"></div>
                 
-                <div className="text-center space-y-4">
+                <div className="text-center">
                   <p className="text-sm text-midnight-600 font-medium">
-                    New to Platyfend?
+                    Don't have an account?{" "}
+                    <button 
+                      onClick={() => console.log("Sign up clicked")}
+                      className="text-platyfend-600 hover:text-platyfend-700 hover:underline transition-colors underline-offset-2 font-bold"
+                    >
+                      Sign up here
+                    </button>
                   </p>
-                  <Button 
-                    onClick={() => console.log("Sign up clicked")}
-                    className="bg-gradient-to-r from-platyfend-600 to-platyfend-700 hover:from-platyfend-700 hover:to-platyfend-800 text-white font-semibold px-8 py-3 rounded-xl shadow-lg shadow-platyfend-600/25 hover:shadow-xl hover:shadow-platyfend-600/30 transition-all duration-300 transform hover:scale-105 hover:-translate-y-0.5"
-                  >
-                    <span>Create your account</span>
-                    <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform duration-300" />
-                  </Button>
                 </div>
               </div>
 
@@ -181,7 +179,7 @@ const Index = () => {
           </Card>
 
           {/* Enhanced Footer */}
-          <div className="text-center mt-10">
+          <div className="text-center mt-8">
             <div className="inline-flex items-center space-x-2 text-sm text-midnight-600 font-medium bg-white/40 backdrop-blur-sm px-4 py-2 rounded-full border border-white/30">
               <Shield className="w-4 h-4 text-platyfend-600" />
               <span>
