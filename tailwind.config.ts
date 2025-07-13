@@ -2,14 +2,14 @@
 import type { Config } from "tailwindcss";
 
 export default {
-	darkMode: ["class"],
+	darkMode: 'selector',
 	content: [
+		"./src/**/*.{ts,tsx}",
 		"./pages/**/*.{ts,tsx}",
 		"./components/**/*.{ts,tsx}",
 		"./app/**/*.{ts,tsx}",
-		"./src/**/*.{ts,tsx}",
+		"./lib/**/*.{ts,tsx}",
 	],
-	prefix: "",
 	theme: {
 		container: {
 			center: true,
@@ -21,6 +21,7 @@ export default {
 		extend: {
 			fontFamily: {
 				'sans': ['Inter', 'system-ui', 'sans-serif'],
+				baskerville: ['Baskerville', 'Georgia', 'serif'],
 			},
 			colors: {
 				border: 'hsl(var(--border))',
@@ -57,7 +58,7 @@ export default {
 					foreground: 'hsl(var(--card-foreground))'
 				},
 				sidebar: {
-					DEFAULT: 'hsl(var(--sidebar-background))',
+					DEFAULT: 'hsl(var(--sidebar))',
 					foreground: 'hsl(var(--sidebar-foreground))',
 					primary: 'hsl(var(--sidebar-primary))',
 					'primary-foreground': 'hsl(var(--sidebar-primary-foreground))',
@@ -66,19 +67,19 @@ export default {
 					border: 'hsl(var(--sidebar-border))',
 					ring: 'hsl(var(--sidebar-ring))'
 				},
-				// Enhanced Platyfend brand colors with midnight and premium palette
+				// Enhanced Platyfend brand colors based on primary color #00617b
 				platyfend: {
-					50: '#f0fdfa',
-					100: '#ccfbf1',
-					200: '#99f6e4',
-					300: '#5eead4',
-					400: '#2dd4bf',
-					500: '#14b8a6',
-					600: '#0d9488',
-					700: '#0f766e',
-					800: '#115e59',
-					900: '#134e4a',
-					950: '#042f2e',
+					50: '#f0f9fb',
+					100: '#d9f0f4',
+					200: '#b3e1ea',
+					300: '#8dd2df',
+					400: '#66c3d5',
+					500: '#00617b',
+					600: '#005569',
+					700: '#004957',
+					800: '#003d45',
+					900: '#003133',
+					950: '#002528',
 				},
 				midnight: {
 					50: '#f8fafc',
@@ -97,6 +98,9 @@ export default {
 					white: 'rgba(255, 255, 255, 0.1)',
 					dark: 'rgba(0, 0, 0, 0.1)',
 				}
+			},
+			borderColor: {
+				border: 'hsl(var(--border))',
 			},
 			borderRadius: {
 				lg: 'var(--radius)',
@@ -174,5 +178,7 @@ export default {
 			}
 		}
 	},
-	plugins: [require("tailwindcss-animate")],
+	plugins: [require("tailwindcss-animate"),
+		require('@tailwindcss/typography')
+	],
 } satisfies Config;
