@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "next-auth/next"
 import { authOptions } from "@/src/lib/auth"
-import { prisma } from "@/src/lib/prisma"
+import { prisma } from "@/src/lib/database/prisma"
 
 export async function GET() {
   try {
@@ -9,6 +9,15 @@ export async function GET() {
     
     if (!session?.user?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
+
+    // Verify user exists
+    const user = await prisma.user.findUnique({
+      where: { id: session.user.id }
+    })
+
+    if (!user) {
+      return NextResponse.json({ error: "User not found" }, { status: 401 })
     }
 
     const workspaces = await prisma.workspace.findMany({
@@ -58,6 +67,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
+    // Check user existence in DB before proceeding
+    const user = await prisma.user.findUnique({
+      where: { id: session.user.id }
+    })
+
+    if (!user) {
+      return NextResponse.json({ error: "User not found" }, { status: 401 })
+    }
+
     const { name, description } = await request.json()
 
     if (!name) {
@@ -67,7 +85,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Generate slug from name
+    // Generate slug from name safely
     const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
 
     const workspace = await prisma.workspace.create({
@@ -77,7 +95,7 @@ export async function POST(request: NextRequest) {
         description,
         members: {
           create: {
-            userId: session.user.id,
+            userId: user.id,  // use the verified user id here
             role: "owner"
           }
         }

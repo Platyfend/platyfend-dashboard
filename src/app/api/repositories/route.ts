@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/src/lib/auth";
 import { prisma } from "@/src/lib/database/prisma";
+import { getInstallationOctokit } from "@/src/lib/github/getInstallationAccessToken"
+
 
 export async function GET(request: NextRequest) {
   try {

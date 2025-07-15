@@ -14,6 +14,16 @@ export async function saveGitHubOAuthInfo(
     throw new Error("Missing required user or account information");
   }
 
+  // ✅ Prevent foreign key error
+  const dbUser = await prisma.user.findUnique({
+    where: { id: user.id },
+  });
+
+  if (!dbUser) {
+    console.warn(`User ${user.id} not found in DB yet — skipping GitHub save.`);
+    return;
+  }
+
   try {
     // Check if VCS provider exists
     let provider = await prisma.vCSProvider.findFirst({
