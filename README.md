@@ -58,6 +58,7 @@ Edit `.env` with your actual values (see Environment Variables section below).
 ```bash
 npx prisma migrate dev
 npx prisma generate
+npm run prisma:studio
 ```
 
 5. Run the development server:

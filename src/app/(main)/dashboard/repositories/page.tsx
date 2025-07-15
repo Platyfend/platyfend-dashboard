@@ -89,7 +89,7 @@ export default function RepositoriesPage() {
           <h2 className="text-lg font-semibold text-gray-900 mb-2">
             Platyfend-bot currently doesn't have access to repositories for this account.
           </h2>
-          <p className="text-gray-600 mb-6 max-w-xl mx-auto">
+          <p className="text-gray-600 mb-6 max-w-xl mx-auto"> 
             Install Platyfend-bot on your GitHub account and grant access to the repositories you want to work with.
           </p>
 
