@@ -18,6 +18,12 @@ const envSchema = z.object({
 
   // GitHub App (optional)
   GITHUB_APP_NAME: z.string().optional().default('platyfend'),
+
+  // GitLab OAuth
+  GITLAB_CLIENT_ID: z.string().min(1),
+  GITLAB_CLIENT_SECRET: z.string().min(1),
+
+  GITLAB_APP_NAME: z.string().optional().default('platyfend'),
   
 
   

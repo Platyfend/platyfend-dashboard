@@ -1,6 +1,7 @@
 import { NextAuthOptions } from "next-auth";
 import { MongoDBAdapter } from "@auth/mongodb-adapter";
 import GitHubProvider from "next-auth/providers/github";
+import GitlabProvider from "next-auth/providers/gitlab";
 import { env } from "@/src/lib/config/environment";
 import client from "@/src/lib/database/client";
 import type { User, Account, Profile } from "next-auth";
@@ -46,6 +47,35 @@ async function saveGitHubOAuthInfo(
   }
 }
 
+async function saveGitLabOAuthInfo(
+  user: User,
+  account: Account,
+  profile?: Profile // Reserved for future use (GitLab profile data)
+): Promise<void> {
+  try {
+    // Validate required OAuth data
+    if (!account.access_token) {
+      throw new Error("GitLab access token is required");
+    }
+    if (!user.email) {
+      throw new Error("User email is required for GitLab integration");
+    }
+
+    // Log successful OAuth data capture (without sensitive tokens)
+    console.log("GitLab OAuth info captured for user:", {
+      userId: user.id,
+      email: user.email,
+      provider: account.provider,
+      scope: account.scope,
+      hasAccessToken: !!account.access_token
+    });
+
+  } catch (error) {
+    console.error("Error in saveGitLabOAuthInfo:", error);
+    throw error;
+  }
+}
+
 declare module "next-auth" {
   interface Session {
     user: {
@@ -69,8 +99,17 @@ export const authOptions: NextAuthOptions = {
         },
       },
     }),
+    GitlabProvider({
+      clientId: env.GITLAB_CLIENT_ID,
+      clientSecret: env.GITLAB_CLIENT_SECRET,
+      authorization: {
+        params: {
+          scope: "read_user read_api",
+        },
+      },
+    }),
     // Add more providers as needed
-    // GitLabProvider, AzureADProvider, etc.
+    // AzureADProvider, etc.
   ],
   callbacks: {
     async signIn({ user, account, profile }) {
@@ -87,9 +126,15 @@ export const authOptions: NextAuthOptions = {
           await saveGitHubOAuthInfo(user, account, profile);
         } catch (error) {
           console.error("Error saving GitHub OAuth info:", error);
-          // Don't block sign-in if VCS info saving fails
-          // This allows users to still authenticate even if workspace setup fails
+          
         }
+      } else if (account.provider === "gitlab" && account.access_token) {
+        // Handle GitLab OAuth
+        try {
+          await saveGitLabOAuthInfo(user, account, profile);
+        } catch (error) {
+          console.error("Error saving GitLab OAuth info:", error);
+        } 
       }
 
       // Additional validation can be added here for other providers
