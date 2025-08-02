@@ -3,15 +3,22 @@ import { Toaster as Sonner } from "@/src/components/ui/sonner";
 import { TooltipProvider } from "@/src/components/ui/tooltip";
 import { ThemeProvider } from "next-themes";
 import { Providers } from "@/src/components/providers";
-import { AuthProvider } from "@/src/features/auth/components/auth-provider";
+import { AuthProvider } from "@/src/features/auth";
 import { inter, fontVariables } from "@/src/lib/fonts";
-import StyledComponentsRegistry from '@/src/lib/registry';
+import type { Metadata, Viewport } from 'next';
 import './globals.css';
 
-export const metadata = {
+export const metadata: Metadata = {
   title: 'Platyfend - AI-Powered Code Review Platform',
-  description: 'Intelligent code review and analysis platform powered by AI',
-}
+  description: 'Next generation secure code review agents with vulnerability detection, GitHub integration, and automated security analysis.',
+};
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 5,
+  userScalable: true,
+};
 
 export default function RootLayout({
   children,
@@ -21,26 +28,27 @@ export default function RootLayout({
   return (
     <html lang="en" className={fontVariables} suppressHydrationWarning>
       <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5, user-scalable=yes" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
       </head>
       <body className={inter.className}>
-        <StyledComponentsRegistry>
-          <ThemeProvider
-            attribute="class"
-            disableTransitionOnChange
-          >
-            <AuthProvider>
-              <Providers>
-                  <TooltipProvider>
-                    <Toaster />
-                    <Sonner />
-                    {children}
-                  </TooltipProvider>
-              </Providers>
-            </AuthProvider>
-          </ThemeProvider>
-        </StyledComponentsRegistry>
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="light"
+          enableSystem={false}
+          disableTransitionOnChange
+        >
+          <AuthProvider>
+            <Providers>
+                <TooltipProvider>
+                  <Toaster />
+                  <Sonner />
+                  {children}
+                </TooltipProvider>
+            </Providers>
+          </AuthProvider>
+        </ThemeProvider>
       </body>
     </html>
   )

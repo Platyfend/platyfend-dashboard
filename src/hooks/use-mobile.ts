@@ -5,7 +5,9 @@ export function useIsMobile() {
 
   useEffect(() => {
     const checkDevice = () => {
-      setIsMobile(window.innerWidth < 768)
+      // Updated threshold to 1024px to match lg: breakpoint
+      // This ensures mobile behavior on tablets and smaller screens
+      setIsMobile(window.innerWidth < 1024)
     }
 
     checkDevice()

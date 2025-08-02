@@ -48,6 +48,31 @@ export interface Repository {
   updatedAt: Date;
 }
 
+// VCS Provider types
+export type VCSProviderType = 'github' | 'gitlab' | 'bitbucket' | 'azure';
+
+export interface VCSInstallation {
+  id: string;
+  installationId: string;
+  workspaceId?: string | null;
+  userId?: string | null;
+  provider: VCSProviderType;
+  status: 'active' | 'suspended' | 'deleted';
+  permissions: Record<string, string>;
+  repositorySelection: 'all' | 'selected';
+  selectedRepositories?: string[];
+  accountLogin: string;
+  accountType: 'User' | 'Organization';
+  providerSpecificData?: Record<string, any>; // For provider-specific metadata
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+// Backward compatibility - GitHub specific installation
+export interface GitHubInstallation extends VCSInstallation {
+  provider: 'github';
+}
+
 export interface PullRequest {
   id: string;
   number: number;
@@ -89,6 +114,49 @@ export interface PaginatedResponse<T> extends ApiResponse<T[]> {
   };
 }
 
+// Enhanced repository with provider information
+export interface RepositoryWithProvider extends Repository {
+  provider: VCSProviderType;
+}
+
+// Multi-VCS repositories response
+export interface MultiVCSRepositoriesResponse extends ApiResponse {
+  repositories?: RepositoryWithProvider[];
+  workspace?: {
+    id: string;
+    name: string;
+    slug: string;
+  };
+  vcsConnections?: {
+    github?: VCSInstallation;
+    gitlab?: VCSInstallation;
+    bitbucket?: VCSInstallation;
+    azure?: VCSInstallation;
+  };
+  missingProviders?: VCSProviderType[];
+  installationUrls?: Record<VCSProviderType, string>;
+  requiresWorkspaceSetup?: boolean;
+}
+
+// Backward compatibility - original response format
+export interface RepositoriesResponse extends ApiResponse {
+  repositories?: Repository[];
+  workspace?: {
+    id: string;
+    name: string;
+    slug: string;
+  };
+  githubInstallation?: {
+    id: string;
+    installationId: string;
+    status: string;
+  };
+  requiresGitHubAuth?: boolean;
+  requiresGitHubAppInstall?: boolean;
+  installUrl?: string;
+  workspaceId?: string;
+}
+
 // Form types
 export interface CreateWorkspaceForm {
   name: string;
@@ -124,7 +192,7 @@ export interface AsyncState<T = any> {
 
 // Environment variables type
 export interface EnvironmentVariables {
-  DATABASE_URL: string;
+  MONGODB_URI: string;
   NEXTAUTH_URL: string;
   NEXTAUTH_SECRET: string;
   GITHUB_CLIENT_ID: string;
@@ -132,14 +200,4 @@ export interface EnvironmentVariables {
   GITHUB_APP_ID: string;
   GITHUB_PRIVATE_KEY: string;
   GITHUB_WEBHOOK_SECRET: string;
-  RABBITMQ_URL: string;
-  PYTHON_BACKEND_URL: string;
-  NEXTJS_CALLBACK_URL: string;
-  STRIPE_SECRET_KEY?: string;
-  STRIPE_PUBLISHABLE_KEY?: string;
-  STRIPE_WEBHOOK_SECRET?: string;
-  AWS_ACCESS_KEY_ID?: string;
-  AWS_SECRET_ACCESS_KEY?: string;
-  AWS_REGION?: string;
-  AWS_S3_BUCKET?: string;
 }

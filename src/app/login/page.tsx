@@ -1,14 +1,22 @@
 'use client'
 
-import { useState } from "react";
-import { signIn } from "next-auth/react";
+import { useState, useEffect } from "react";
+import { signIn, useSession } from "next-auth/react";
+import { useRouter } from "next/navigation";
 import { Button } from "@/src/components/ui/button";
 import { Card, CardContent } from "@/src/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/src/components/ui/tabs";
 
 export default function LoginPage() {
-  
+  const { data: session, status } = useSession();
+  const router = useRouter();
   const [selectedOption, setSelectedOption] = useState<'saas' | 'self-hosted'>('saas');
+
+  useEffect(() => {
+    if (status === 'authenticated' && session) {
+      router.push('/dashboard');
+    }
+  }, [session, status, router]);
 
   const getAuthProviders = (option: 'saas' | 'self-hosted') => {
     if (option === 'saas') {
@@ -143,14 +151,13 @@ export default function LoginPage() {
         <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-gradient-conic from-primary/5 via-transparent to-secondary/5 rounded-full blur-3xl"></div>
       </div>
 
-      <div className="relative flex items-center justify-center min-h-screen p-4">
-        <div className="w-full max-w-md">
+      <div className="relative flex items-center justify-center min-h-screen p-4 sm:p-6 lg:p-8">
+        <div className="w-full max-w-md mx-auto">
           {/* Logo and Title */}
-          <div className="text-center mb-12">
-            <div className="flex items-center justify-center mb-8">
+          <div className="text-center mb-8 sm:mb-12">
+            <div className="flex items-center justify-center mb-6 sm:mb-8">
               <svg
-                width="240"
-                height="45"
+                className="w-48 sm:w-60 h-auto"
                 viewBox="0 0 140.75185 26.435898"
                 version="1.1"
                 id="svg5"
@@ -239,14 +246,14 @@ export default function LoginPage() {
               </svg>
             </div>
 
-            <div className="space-y-2 mb-10">
-              <div className="font-500 font-frutiger text-black mb-2 text-xl leading-8 lg:text-2xl">
+            <div className="space-y-2 mb-8 sm:mb-10">
+              <div className="font-500 font-frutiger text-black mb-2 text-lg sm:text-xl lg:text-2xl leading-6 sm:leading-8">
                 Welcome to Platyfend
               </div>
             </div>
 
             {/* Enhanced SaaS / Self-Hosted Toggle */}
-            <div className="relative bg-white/60 backdrop-blur-sm rounded-2xl p-1.5 mb-8 shadow-lg border border-white/20">
+            <div className="relative bg-white/60 backdrop-blur-sm rounded-2xl p-1.5 mb-6 sm:mb-8 shadow-lg border border-white/20">
               <div className="flex relative">
                 <div
                   className={`absolute top-1.5 bottom-1.5 bg-white rounded-xl shadow-md transition-all duration-300 ease-out ${
@@ -255,26 +262,26 @@ export default function LoginPage() {
                 ></div>
                 <button
                   onClick={() => setSelectedOption('saas')}
-                  className={`relative flex-1 py-3 px-4 rounded-xl text-sm font-semibold transition-all duration-300 cursor-pointer ${
+                  className={`relative flex-1 py-2.5 sm:py-3 px-3 sm:px-4 rounded-xl text-sm font-semibold transition-all duration-300 cursor-pointer ${
                     selectedOption === 'saas'
                       ? 'text-blue-700 z-10'
                       : 'text-slate-600 hover:text-slate-800'
                   }`}
                 >
                   <div className="flex items-center justify-center space-x-2">
-                    <span>Cloud SaaS</span>
+                    <span className="text-xs sm:text-sm">Cloud SaaS</span>
                   </div>
                 </button>
                 <button
                   onClick={() => setSelectedOption('self-hosted')}
-                  className={`relative flex-1 py-3 px-4 rounded-xl text-sm font-semibold transition-all duration-300 cursor-pointer ${
+                  className={`relative flex-1 py-2.5 sm:py-3 px-3 sm:px-4 rounded-xl text-sm font-semibold transition-all duration-300 cursor-pointer ${
                     selectedOption === 'self-hosted'
                       ? 'text-blue-700 z-10'
                       : 'text-slate-600 hover:text-slate-800'
                   }`}
                 >
                   <div className="flex items-center justify-center space-x-2">
-                    <span>Self-Hosted</span>
+                    <span className="text-xs sm:text-sm">Self-Hosted</span>
                   </div>
                 </button>
               </div>
@@ -291,15 +298,15 @@ export default function LoginPage() {
 
           {/* Enhanced Authentication Card */}
           <Card className="border-0 shadow-2xl shadow-slate-900/5 bg-white/70 backdrop-blur-md rounded-3xl overflow-hidden">
-            <CardContent className="p-8">
+            <CardContent className="p-6 sm:p-8">
               <Tabs defaultValue={selectedOption} value={selectedOption} onValueChange={(value) => setSelectedOption(value as 'saas' | 'self-hosted')} className="w-full">
                 <TabsList className="hidden">
                   <TabsTrigger value="saas">Cloud SaaS</TabsTrigger>
                   <TabsTrigger value="self-hosted">Self-Hosted</TabsTrigger>
                 </TabsList>
-                <TabsContent 
-                  value="saas" 
-                  className="ring-offset-background focus-visible:ring-ring mt-2 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-hidden h-[15rem]"
+                <TabsContent
+                  value="saas"
+                  className="ring-offset-background focus-visible:ring-ring mt-2 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-hidden min-h-[12rem] sm:h-[15rem]"
                 >
                   {getAuthProviders('saas').map((provider, index) => (
                     <Button
@@ -307,13 +314,13 @@ export default function LoginPage() {
                       onClick={provider.onClick}
                       variant="outline"
                       className={`
-                        inline-flex items-center justify-center whitespace-nowrap text-m 
+                        inline-flex items-center justify-center whitespace-nowrap text-sm sm:text-base
                         ring-offset-background transition-all duration-300 ease-in-out
-                        focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 
-                        disabled:pointer-events-none disabled:opacity-50 
-                        w-full bg-white border-none rounded-4xl h-13 max-w-96 hover:bg-white ${index > 0 ? 'mt-4' : ''} px-4 py-2
+                        focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2
+                        disabled:pointer-events-none disabled:opacity-50
+                        w-full bg-white border-none rounded-4xl h-12 sm:h-13 max-w-96 hover:bg-white ${index > 0 ? 'mt-3 sm:mt-4' : ''} px-3 sm:px-4 py-2
                         text-slate-800 shadow-sm
-                        hover:bg-white hover:cursor-pointer hover:shadow-md 
+                        hover:bg-white hover:cursor-pointer hover:shadow-md
                         hover:translate-y-[-2px] hover:border-blue-300
                         active:translate-y-[0px] active:shadow-sm
                         ${provider.color}
@@ -324,9 +331,9 @@ export default function LoginPage() {
                     </Button>
                   ))}
                 </TabsContent>
-                <TabsContent 
-                  value="self-hosted" 
-                  className="ring-offset-background focus-visible:ring-ring mt-2 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-hidden h-[15rem]"
+                <TabsContent
+                  value="self-hosted"
+                  className="ring-offset-background focus-visible:ring-ring mt-2 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-hidden min-h-[12rem] sm:h-[15rem]"
                 >
                   {getAuthProviders('self-hosted').map((provider, index) => (
                     <Button
@@ -334,13 +341,13 @@ export default function LoginPage() {
                       onClick={provider.onClick}
                       variant="outline"
                       className={`
-                        inline-flex items-center justify-center whitespace-nowrap text-m 
+                        inline-flex items-center justify-center whitespace-nowrap text-sm sm:text-base
                         ring-offset-background transition-all duration-300 ease-in-out
-                        focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 
-                        disabled:pointer-events-none disabled:opacity-50 
-                        w-full bg-white border-none rounded-4xl h-13 max-w-96 hover:bg-white ${index > 0 ? 'mt-4' : ''} px-4 py-2
+                        focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2
+                        disabled:pointer-events-none disabled:opacity-50
+                        w-full bg-white border-none rounded-4xl h-12 sm:h-13 max-w-96 hover:bg-white ${index > 0 ? 'mt-3 sm:mt-4' : ''} px-3 sm:px-4 py-2
                         text-slate-800 shadow-sm
-                        hover:bg-white hover:cursor-pointer hover:shadow-md 
+                        hover:bg-white hover:cursor-pointer hover:shadow-md
                         hover:translate-y-[-2px] hover:border-blue-300
                         active:translate-y-[0px] active:shadow-sm
                         ${provider.color}
@@ -353,7 +360,7 @@ export default function LoginPage() {
                 </TabsContent>
               </Tabs>
               {/* Enhanced Sign Up Section */}
-              <div className="mt-8 pt-8 text-center">
+              <div className="mt-6 sm:mt-8 pt-6 sm:pt-8 text-center">
                 <p className="text-sm text-slate-600">
                   Don't have an account?{" "}
                   <button
@@ -366,8 +373,8 @@ export default function LoginPage() {
               </div>
 
               {/* Enhanced Legal Text */}
-              <div className="text-center mt-8 pt-6 border-t border-slate-200/30">
-                <p className="text-xs text-slate-500 leading-relaxed font-medium">
+              <div className="text-center mt-6 sm:mt-8 pt-4 sm:pt-6 border-t border-slate-200/30">
+                <p className="text-xs text-slate-500 leading-relaxed font-medium px-2">
                   By continuing, you agree to our{" "}
                   <button
                     onClick={() => console.log("Terms clicked")}

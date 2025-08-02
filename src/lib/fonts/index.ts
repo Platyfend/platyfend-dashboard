@@ -20,11 +20,6 @@ export const jetbrainsMono = JetBrains_Mono({
 export const frutiger = localFont({
   src: [
     {
-      path: '../../../fonts/Frutiger.woff',
-      weight: '400',
-      style: 'normal',
-    },
-    {
       path: '../../../public/Frutiger_bold.woff',
       weight: '700',
       style: 'normal',

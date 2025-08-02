@@ -1,6 +1,9 @@
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "./auth-config";
 
+// Re-export getServerSession for convenience
+export { getServerSession };
+
 export async function verifySession() {
   const session = await getServerSession(authOptions);
   return session;
