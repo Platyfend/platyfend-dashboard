@@ -1,11 +1,9 @@
-import { NextAuthOptions } from "next-auth";
+import { NextAuthOptions, User, Account, Profile } from "next-auth";
 import { MongoDBAdapter } from "@auth/mongodb-adapter";
 import GitHubProvider from "next-auth/providers/github";
 import GitlabProvider from "next-auth/providers/gitlab";
 import { env } from "@/src/lib/config/environment";
 import client from "@/src/lib/database/client";
-import { saveGitHubOAuthInfo } from "./github";
-import { saveGitLabOAuthInfo } from "./gitlab";
 
 declare module "next-auth" {
   interface Session {
@@ -15,6 +13,88 @@ declare module "next-auth" {
       email?: string | null;
       image?: string | null;
     };
+    // make GitLab token available on the session object
+    gitlabAccessToken?: string;
+  }
+  interface JWT {
+    uid?: string;
+    gitlabAccessToken?: string;
+  }
+}
+
+export async function saveGitLabOAuthInfo(
+  user: User,
+  account: Account,
+  profile?: Profile
+): Promise<void> {
+  try {
+    // Validate required OAuth data
+    if (!account.access_token) {
+      throw new Error("GitLab access token is required");
+    }
+    if (!user.email) {
+      throw new Error("User email is required for GitLab integration");
+    }
+
+    // Log successful OAuth data capture (without sensitive tokens)
+    console.log("GitLab OAuth info captured for user:", {
+      userId: user.id,
+      email: user.email,
+      provider: account.provider,
+      scope: account.scope,
+      hasAccessToken: !!account.access_token
+    });
+
+    // Skip webhook setup for localhost
+    const baseUrl = process.env.NEXTAUTH_URL;
+    if (baseUrl?.includes('localhost') || baseUrl?.includes('127.0.0.1')) {
+      console.log("Skipping webhook setup in local development");
+      return;
+    }
+  } catch (error) {
+    console.error("Error in saveGitLabOAuthInfo:", error);
+    throw error;
+  }
+}
+
+/**
+ * Saves GitHub OAuth information for workspace and repository integration
+ * This function handles the OAuth data received during GitHub authentication
+ */
+export async function saveGitHubOAuthInfo(
+  user: User,
+  account: Account,
+  profile?: Profile // Reserved for future use (GitHub profile data)
+): Promise<void> {
+  try {
+    // Validate required OAuth data
+    if (!account.access_token) {
+      throw new Error("GitHub access token is required");
+    }
+
+    if (!user.email) {
+      throw new Error("User email is required for GitHub integration");
+    }
+
+    // Log successful OAuth data capture (without sensitive tokens)
+    console.log("GitHub OAuth info captured for user:", {
+      userId: user.id,
+      email: user.email,
+      provider: account.provider,
+      scope: account.scope,
+      hasAccessToken: !!account.access_token
+    });
+
+    // TODO: Implement workspace creation and GitHub integration
+    // This would typically involve:
+    // 1. Creating a default workspace for the user
+    // 2. Storing encrypted GitHub tokens for repository access
+    // 3. Setting up webhook configurations
+    // 4. Syncing user's GitHub organizations and repositories
+
+  } catch (error) {
+    console.error("Error in saveGitHubOAuthInfo:", error);
+    throw error;
   }
 }
 

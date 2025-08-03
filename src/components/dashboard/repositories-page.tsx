@@ -25,6 +25,7 @@ import { useRepositories, RepositoriesError } from "@/src/hooks/use-repositories
 import { signIn } from "next-auth/react";
 import { VCSProviderType } from "@/src/types";
 import { LoadingSpinner } from "@/src/components/dashboard/loading-spinner";
+import { useEffect } from "react";
 
 // GitHub Auth Error Component
 function GitHubAuthError() {
@@ -170,8 +171,6 @@ function VCSConnectionError({
     )}
   </AlertDescription>
 </Alert>
-
-
   );
 }
 
@@ -182,6 +181,10 @@ export function RepositoryList() {
   const [rowsPerPage, setRowsPerPage] = useState("10");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
   const { data: repositoriesData, isLoading, error } = useRepositories();
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [repositoriesData, searchQuery, rowsPerPage]);
 
   // Handle loading state
   if (isLoading) {
@@ -279,11 +282,6 @@ export function RepositoryList() {
   const goToPreviousPage = () => setCurrentPage(Math.max(1, currentPage - 1));
   const goToNextPage = () => setCurrentPage(Math.min(totalPages, currentPage + 1));
   const goToLastPage = () => setCurrentPage(totalPages);
-
-  // Reset to first page when search query or rows per page changes
-  React.useEffect(() => {
-    setCurrentPage(1);
-  }, [searchQuery, rowsPerPage]);
 
   const handleSort = () => {
     setSortOrder(sortOrder === "asc" ? "desc" : "asc");
