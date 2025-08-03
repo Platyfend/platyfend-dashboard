@@ -66,20 +66,11 @@ interface Repository {
   externalId: string;
   name: string;
   fullName: string;
-  description: string;
-  url: string;
-  cloneUrl: string;
-  httpCloneUrl: string;
   provider: 'github' | 'gitlab';
   isPrivate: boolean;
   language: string;
   stars: number;
   forks: number;
-  lastActivity: string;
-  createdAt: string;
-  avatarUrl?: string;
-  ownerName: string;
-  defaultBranch: string;
 }
 
 interface ConnectedProvider {
