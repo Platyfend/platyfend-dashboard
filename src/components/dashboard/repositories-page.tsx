@@ -21,9 +21,10 @@ import {
   SelectValue,
 } from "@/src/components/ui/select";
 import { Alert, AlertDescription, AlertTitle } from "@/src/components/ui/alert";
-import { useRepositories, RepositoriesError } from "@/src/hooks/use-repositories";
+import { useRepositories } from "@/src/hooks/use-repositories";
 import { signIn } from "next-auth/react";
 import { VCSProviderType } from "@/src/types";
+import { RepositoriesError } from "@/src/types/repositories";
 import { LoadingSpinner } from "@/src/components/dashboard/loading-spinner";
 import { useEffect } from "react";
 

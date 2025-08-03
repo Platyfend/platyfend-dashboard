@@ -36,6 +36,7 @@ interface Repository {
   externalId: string;
   name: string;
   fullName: string;
+  description?: string;
   provider: 'github' | 'gitlab';
   isPrivate: boolean;
   language: string;
