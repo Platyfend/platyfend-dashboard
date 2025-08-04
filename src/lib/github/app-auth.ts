@@ -241,9 +241,6 @@ export class GitHubAppAuth {
 
       return await response.json();
     } catch (error) {
-      if (error instanceof Error && error.message.includes('404')) {
-        return null;
-      }
       throw new Error(
         `Failed to get repository ${repoId}: ${error instanceof Error ? error.message : 'Unknown error'}`
       );

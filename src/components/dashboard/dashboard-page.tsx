@@ -10,17 +10,7 @@ import { useRepositoryStats, useCurrentOrganizationRepos, useUserOrganizations }
 import { AddRepositoriesButton } from "@/src/components/dashboard/add-repositories-button"
 import { RepositoryCard } from "@/src/components/dashboard/repository-list"
 import { getProviderDisplayName } from "@/src/lib/utils/provider"
-
-// Type guard to safely convert string to installation status
-function isValidInstallationStatus(status: string | undefined): status is 'active' | 'pending' | 'suspended' | 'deleted' {
-  return status === 'active' || status === 'pending' || status === 'suspended' || status === 'deleted';
-}
-
-// Safe converter function for installation status
-function toInstallationStatus(status: string | undefined): 'active' | 'pending' | 'suspended' | 'deleted' | undefined {
-  if (!status) return undefined;
-  return isValidInstallationStatus(status) ? status : undefined;
-}
+import { toInstallationStatus } from "@/src/lib/utils/installation-status"
 
 export function DashboardPage() {
   const router = useRouter()
