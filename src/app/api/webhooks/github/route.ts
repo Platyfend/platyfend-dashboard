@@ -24,7 +24,9 @@ export async function POST(request: NextRequest) {
         console.log(`GitHub webhook received: ${event}`, {
             action: payload.action,
             installationId: payload.installation?.id,
-            senderId: payload.sender?.id
+            senderId: payload.sender?.id,
+            repositorySelection: payload.repository_selection,
+            repositoriesCount: payload.repositories?.length || 0
         })
 
         // Handle different webhook events using sync services

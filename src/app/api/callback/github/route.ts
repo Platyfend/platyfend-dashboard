@@ -107,23 +107,29 @@ export async function GET(request: NextRequest) {
             })
         }
 
-        // Add repositories to organization
-        for (const repo of repositories) {
-            await organization.addRepository({
-                repo_id: repo.id.toString(),
-                name: repo.name,
-                full_name: repo.full_name,
-                private: repo.private,
-                installation_id: installationId,
-                permissions: repo.permissions ? Object.keys(repo.permissions) : ['read'],
-                description: repo.description || undefined,
-                language: repo.language || undefined,
-                stars: repo.stargazers_count || 0,
-                forks: repo.forks_count || 0,
-                default_branch: repo.default_branch || 'main',
-                url: repo.html_url
-            })
-        }
+        // Clear existing repositories and add new ones
+        // This ensures we have the exact set of repositories from the installation
+        organization.repos = repositories.map((repo: any) => ({
+            repo_id: repo.id.toString(),
+            name: repo.name,
+            full_name: repo.full_name,
+            private: repo.private,
+            installation_id: installationId,
+            permissions: repo.permissions ? Object.keys(repo.permissions) : ['read'],
+            description: repo.description || undefined,
+            language: repo.language || undefined,
+            stars: repo.stargazers_count || 0,
+            forks: repo.forks_count || 0,
+            default_branch: repo.default_branch || 'main',
+            url: repo.html_url,
+            added_at: new Date(),
+            last_sync: new Date()
+        }))
+
+        // Update repository counts
+        organization.total_repos = repositories.length
+        organization.public_repos = repositories.filter((repo: any) => !repo.private).length
+        organization.private_repos = repositories.filter((repo: any) => repo.private).length
 
         await organization.save()
 

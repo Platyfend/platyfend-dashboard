@@ -1,6 +1,4 @@
 import { Organization, InstallationStatus } from '@/src/lib/database/models';
-import { repositorySyncService, RepositoryMetadata } from './repository-sync';
-import { errorHandlingService, createErrorContext } from './error-handling';
 
 export interface WebhookSyncResult {
   success: boolean;
@@ -20,7 +18,7 @@ export class WebhookSyncService {
    * Handle installation webhook events
    */
   async handleInstallationEvent(payload: any): Promise<WebhookSyncResult> {
-    const { action, installation } = payload;
+    const { action, installation, repositories, repository_selection } = payload;
     const installationId = installation.id.toString();
 
     const result: WebhookSyncResult = {
@@ -33,21 +31,19 @@ export class WebhookSyncService {
     try {
       switch (action) {
         case 'created':
-          // Installation creation is handled by the callback endpoint
-          console.log(`Installation ${installationId} created - handled by callback`);
-          result.success = true;
+          await this.handleInstallationCreated(installationId, installation, repositories, repository_selection, result);
           break;
 
         case 'deleted':
-          await this.handleInstallationDeleted(installationId, result);
+          await this.handleInstallationDeleted(installationId, installation, result);
           break;
 
         case 'suspend':
-          await this.handleInstallationSuspended(installationId, result);
+          await this.handleInstallationSuspended(installationId, installation, result);
           break;
 
         case 'unsuspend':
-          await this.handleInstallationUnsuspended(installationId, result);
+          await this.handleInstallationUnsuspended(installationId, installation, result);
           break;
 
         default:
@@ -57,6 +53,8 @@ export class WebhookSyncService {
       console.log(`Installation webhook processed:`, {
         action,
         installationId,
+        repositorySelection: repository_selection,
+        repositoriesAffected: result.repositoriesAffected,
         success: result.success,
         errors: result.errors
       });
@@ -208,13 +206,92 @@ export class WebhookSyncService {
   }
 
   /**
+   * Handle installation created
+   */
+  private async handleInstallationCreated(
+    installationId: string,
+    installation: any,
+    repositories: any[] | undefined,
+    repository_selection: string | undefined,
+    result: WebhookSyncResult
+  ): Promise<void> {
+    // Extract organization ID from the installation account
+    const account = installation.account;
+    const githubAccountId = account?.id?.toString();
+
+    if (githubAccountId) {
+      result.organizationId = githubAccountId;
+    }
+
+    console.log(`Installation ${installationId} created:`, {
+      repositorySelection: repository_selection,
+      repositoriesCount: repositories?.length || 0,
+      accountType: account?.type,
+      accountLogin: account?.login
+    });
+
+    // Find the organization by GitHub account ID (org_id), not installation_id
+    // since the organization was created during OAuth with org_id but no installation_id
+    let organization = null;
+    if (githubAccountId) {
+      try {
+        organization = await Organization.findOne({
+          org_id: githubAccountId,
+          provider: 'github'
+        });
+
+        if (organization) {
+          // Update the organization with the installation_id and set status to active
+          organization.installation_id = installationId;
+          organization.installation_status = InstallationStatus.ACTIVE;
+          organization.updated_at = new Date();
+          await organization.save();
+
+          console.log(`Updated organization ${organization._id} with installation_id ${installationId}`);
+        } else {
+          console.log(`No organization found for GitHub account ${githubAccountId} - organization may not exist yet`);
+        }
+      } catch (error) {
+        console.error(`Error finding/updating organization for GitHub account ${githubAccountId}:`, error);
+        result.errors.push(`Failed to find organization for GitHub account ${githubAccountId}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      }
+    }
+
+    // If repositories are provided in the webhook (for selected repositories),
+    // we can sync them here. For "all" repositories, we'll need to fetch them via API
+    if (repositories && repositories.length > 0 && organization) {
+      try {
+        await this.handleRepositoriesAdded(organization, repositories, installationId, result);
+        console.log(`Synced ${repositories.length} repositories from installation webhook`);
+      } catch (error) {
+        console.error(`Error syncing repositories from installation webhook:`, error);
+        result.errors.push(`Failed to sync repositories: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      }
+    } else if (repository_selection === 'all') {
+      console.log(`Installation ${installationId} has access to all repositories - will be synced via callback or API fetch`);
+    }
+
+    result.success = true;
+  }
+
+  /**
    * Handle installation deleted
    */
-  private async handleInstallationDeleted(installationId: string, result: WebhookSyncResult): Promise<void> {
+  private async handleInstallationDeleted(installationId: string, installation: any, result: WebhookSyncResult): Promise<void> {
+    // Extract organization ID from the installation account
+    const account = installation.account;
+    const githubAccountId = account?.id?.toString();
+
+    if (githubAccountId) {
+      result.organizationId = githubAccountId;
+    }
+
+    // Update organization by installation_id (since it should be set by now)
     const updateResult = await Organization.updateMany(
       { installation_id: installationId },
-      { 
+      {
         installation_status: InstallationStatus.DELETED,
+        installation_id: null, // Clear the installation_id
         updated_at: new Date()
       }
     );
@@ -227,10 +304,18 @@ export class WebhookSyncService {
   /**
    * Handle installation suspended
    */
-  private async handleInstallationSuspended(installationId: string, result: WebhookSyncResult): Promise<void> {
+  private async handleInstallationSuspended(installationId: string, installation: any, result: WebhookSyncResult): Promise<void> {
+    // Extract organization ID from the installation account
+    const account = installation.account;
+    const githubAccountId = account?.id?.toString();
+
+    if (githubAccountId) {
+      result.organizationId = githubAccountId;
+    }
+
     const updateResult = await Organization.updateMany(
       { installation_id: installationId },
-      { 
+      {
         installation_status: InstallationStatus.SUSPENDED,
         updated_at: new Date()
       }
@@ -244,10 +329,18 @@ export class WebhookSyncService {
   /**
    * Handle installation unsuspended
    */
-  private async handleInstallationUnsuspended(installationId: string, result: WebhookSyncResult): Promise<void> {
+  private async handleInstallationUnsuspended(installationId: string, installation: any, result: WebhookSyncResult): Promise<void> {
+    // Extract organization ID from the installation account
+    const account = installation.account;
+    const githubAccountId = account?.id?.toString();
+
+    if (githubAccountId) {
+      result.organizationId = githubAccountId;
+    }
+
     const updateResult = await Organization.updateMany(
       { installation_id: installationId },
-      { 
+      {
         installation_status: InstallationStatus.ACTIVE,
         updated_at: new Date()
       }
@@ -262,14 +355,28 @@ export class WebhookSyncService {
    * Handle repositories added to installation
    */
   private async handleRepositoriesAdded(
-    organization: any, 
-    repositories: any[], 
-    installationId: string, 
+    organization: any,
+    repositories: any[],
+    installationId: string,
     result: WebhookSyncResult
   ): Promise<void> {
-    for (const repo of repositories) {
-      try {
-        const repoData: RepositoryMetadata = {
+    try {
+      // Transform all repositories to our format
+      const currentTime = new Date()
+      const newRepos = repositories.map((repo: any) => {
+        // Map GitHub permissions to our allowed permissions
+        const githubPerms = repo.permissions || {}
+        const mappedPermissions: string[] = []
+
+        if (githubPerms.admin) mappedPermissions.push('admin')
+        else if (githubPerms.push) mappedPermissions.push('write')
+        else mappedPermissions.push('read')
+
+        if (githubPerms.pull) mappedPermissions.push('pull_requests')
+        if (githubPerms.issues) mappedPermissions.push('issues')
+        mappedPermissions.push('metadata') // Always include metadata
+
+        return {
           repo_id: repo.id.toString(),
           name: repo.name,
           full_name: repo.full_name,
@@ -281,20 +388,39 @@ export class WebhookSyncService {
           default_branch: repo.default_branch || 'main',
           url: repo.html_url,
           installation_id: installationId,
-          permissions: repo.permissions
-            ? Object.keys(repo.permissions).filter(p => repo.permissions[p])
-            : ['read']
-        };
+          permissions: [...new Set(mappedPermissions)], // Remove duplicates
+          added_at: currentTime,
+          last_sync: currentTime
+        }
+      })
 
-        await organization.addRepository(repoData);
-        result.repositoriesAffected++;
-      } catch (error) {
-        result.errors.push(`Failed to add repository ${repo.name}: ${error instanceof Error ? error.message : 'Unknown error'}`);
-      }
+      // Get current repos and add new ones
+      const currentRepos = organization.repos || []
+      const updatedRepos = [...currentRepos, ...newRepos]
+
+      // Update organization with new repositories using simple update
+      await Organization.findByIdAndUpdate(
+        organization._id,
+        {
+          $set: {
+            repos: updatedRepos,
+            total_repos: updatedRepos.length,
+            public_repos: updatedRepos.filter((repo: any) => !repo.private).length,
+            private_repos: updatedRepos.filter((repo: any) => repo.private).length,
+            updated_at: currentTime
+          }
+        },
+        { new: true, runValidators: true }
+      )
+
+      result.repositoriesAffected = newRepos.length
+      result.success = true
+      console.log(`Added ${result.repositoriesAffected} repositories to organization ${organization._id}`)
+
+    } catch (error) {
+      result.errors.push(`Failed to add repositories: ${error instanceof Error ? error.message : 'Unknown error'}`)
+      console.error('Error adding repositories via webhook:', error)
     }
-
-    result.success = result.errors.length === 0;
-    console.log(`Added ${result.repositoriesAffected} repositories to organization ${organization._id}`);
   }
 
   /**

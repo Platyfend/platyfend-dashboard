@@ -143,8 +143,9 @@ const OrganizationSchema = new Schema<IOrganization>(
     },
     installation_id: {
       type: String,
-      required: true,
-      unique: true, // Each installation should be unique
+      required: false, // Optional until GitHub App is installed
+      unique: true, // Each installation should be unique (when set)
+      sparse: true, // Allow multiple null values
       index: true, // Index for installation-based queries
     },
     installation_status: {

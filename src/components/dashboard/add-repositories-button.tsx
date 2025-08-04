@@ -2,11 +2,12 @@
 
 import React, { useState } from "react";
 import { Button } from "@/src/components/ui/button";
-import { Plus, ExternalLink, Loader2, CheckCircle, AlertCircle } from "lucide-react";
+import { Plus, ExternalLink, Loader2, AlertCircle } from "lucide-react";
 import { useSession } from "next-auth/react";
 import { Alert, AlertDescription, AlertTitle } from "@/src/components/ui/alert";
 import { GitHubInstallationError, PermissionError, NetworkError } from "@/src/components/ui/error-boundary";
 import { getProviderDisplayName } from "@/src/lib/utils/provider";
+import { set } from "mongoose";
 
 interface AddRepositoriesButtonProps {
   organizationId?: string;
@@ -34,44 +35,37 @@ export function AddRepositoriesButton({
       setError(`Please sign in to install the ${getProviderDisplayName(provider)} app`);
       return;
     }
+    if (!organizationId) {
+      setError(`Organization ID is required to install the ${getProviderDisplayName(provider)} app`);
+      return;
+    }
 
     setIsLoading(true);
     setError(null);
     onInstallationStart?.();
 
-    try {
-      // Build query parameters for installation
-      const params = new URLSearchParams({
-        type: organizationType,
-      });
-
-      if (organizationId && organizationType === 'organization') {
-        params.append('orgId', organizationId);
-      }
-
-      // Get installation URL from our API
-      const response = await fetch(`/api/github/install?${params.toString()}`);
-      const data = await response.json();
-
-      if (!response.ok) {
-        if (response.status === 409) {
-          // Installation already exists
-          setError(`${getProviderDisplayName(provider)} app is already installed for this organization`);
-          return;
+    if (provider === 'github') {
+      try {
+        // Create state parameter with organization context
+        const stateData = {
+          userId: session.user.id,
+          orgType: organizationType,
+          orgId: organizationId, // This should be the GitHub org/user ID
+          orgName: organizationType === 'organization' ? organizationId : session.user.name,
+          timestamp: Date.now()
         }
-        throw new Error(data.message || 'Failed to generate installation URL');
+
+        const state = btoa(JSON.stringify(stateData)) // Base64 encode
+
+        // Direct redirect to GitHub's installation flow with state
+        window.location.href = `https://github.com/apps/platyfend-test/installations/new/permissions?target_id=${organizationId}&state=${encodeURIComponent(state)}`;
+      } catch (error) {
+        console.error(`Error starting ${getProviderDisplayName(provider)} app installation:`, error);
+        setError(error instanceof Error ? error.message : 'Failed to start installation');
+        setIsLoading(false);
       }
-
-      // Redirect to VCS App installation
-      window.location.href = data.installUrl;
-
-    } catch (error) {
-      console.error(`Error starting ${getProviderDisplayName(provider)} app installation:`, error);
-      setError(error instanceof Error ? error.message : 'Failed to start installation');
-    } finally {
-      setIsLoading(false);
     }
-  };
+  }
 
   const getButtonContent = () => {
     if (isLoading) {
@@ -87,8 +81,8 @@ export function AddRepositoriesButton({
       case 'active':
         return (
           <>
-            <CheckCircle className="w-4 h-4 mr-2" />
-            Manage Repositories
+            <Plus className="w-4 h-4 mr-2" />
+            Add Repositories
           </>
         );
       case 'suspended':
@@ -140,9 +134,6 @@ export function AddRepositoriesButton({
         )}
       </Button>
 
-      {/* Help text */}
-
-      {/* Error display with smart error handling */}
       {error && (
         <>
           {error.includes('permission') || error.includes('access') ? (
@@ -172,16 +163,6 @@ export function AddRepositoriesButton({
       )}
 
       {/* Installation status info */}
-      {installationStatus === 'active' && (
-        <Alert>
-          <CheckCircle className="h-4 w-4" />
-          <AlertTitle>{getProviderDisplayName(provider)} App Installed</AlertTitle>
-          <AlertDescription>
-            The Platyfend {getProviderDisplayName(provider)} app is successfully installed. You can manage repository
-            access and permissions directly on {getProviderDisplayName(provider)}.
-          </AlertDescription>
-        </Alert>
-      )}
 
       {installationStatus === 'suspended' && (
         <Alert variant="destructive">

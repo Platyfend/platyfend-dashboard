@@ -244,7 +244,7 @@ async function createInitialOrganization(
       provider: ProviderType.GITHUB,
       org_name: githubUsername,
       org_type: OrganizationType.PERSONAL,
-      installation_id: `pending-${Date.now()}`, // Temporary ID until GitHub App is installed
+      installation_id: null, // Will be set when GitHub App is installed
       installation_status: InstallationStatus.PENDING,
       permissions: {},
       repos: [], // Start with 0 repositories

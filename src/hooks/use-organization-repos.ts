@@ -1,6 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useSession } from "next-auth/react";
-import { useErrorHandler } from "@/src/components/ui/error-boundary";
 
 export interface OrganizationRepository {
   id: string;
@@ -57,14 +56,14 @@ export function useOrganizationRepos(organizationId: string | null) {
         throw new Error('Organization ID is required');
       }
 
-      const response = await fetch(`/api/organizations/${organizationId}/repositories`);
+      const response = await fetch(`/api/organizations/${organizationId}/repositories/sync`);
       const data = await response.json();
 
       if (!response.ok) {
         const error: OrganizationReposError = {
           message: data.message || `Failed to fetch repositories: ${response.statusText}`,
-          requiresInstallation: response.status === 404 || data.installationStatus !== 'active',
-          installationStatus: data.installationStatus,
+          requiresInstallation: response.status === 404 || data.organization?.installationStatus !== 'active',
+          installationStatus: data.organization?.installationStatus,
         };
         throw error;
       }
@@ -77,17 +76,8 @@ export function useOrganizationRepos(organizationId: string | null) {
       if (error?.requiresInstallation) {
         return false; // Don't retry if installation is required
       }
-      // Retry on network errors and server errors
-      if (error?.message?.includes('network') || error?.message?.includes('500')) {
-        return failureCount < 3;
-      }
-      // Don't retry on client errors (4xx)
-      if (error?.message?.includes('404') || error?.message?.includes('403')) {
-        return false;
-      }
-      return failureCount < 2; // Limited retries for other errors
-    },
-    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000), // Exponential backoff
+      return failureCount < 3;
+    }
   });
 }
 
