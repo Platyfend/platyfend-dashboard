@@ -57,7 +57,7 @@ export function useOrganizationRepos(organizationId: string | null) {
         throw new Error('Organization ID is required');
       }
 
-      const response = await fetch(`/api/organizations/${organizationId}/repositories/sync`);
+      const response = await fetch(`/api/organizations/${organizationId}/repositories`);
       const data = await response.json();
 
       if (!response.ok) {

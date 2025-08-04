@@ -2,7 +2,7 @@ import { NextAuthOptions, User, Account, Profile } from "next-auth";
 import { MongoDBAdapter } from "@auth/mongodb-adapter";
 import GitHubProvider from "next-auth/providers/github";
 import GitlabProvider from "next-auth/providers/gitlab";
-import { env } from "@/src/lib/config/environment";
+import { env, database } from "@/src/lib/config/environment";
 import clientPromise from "@/src/lib/database/client";
 import connectToDatabase from "@/src/lib/database/mongoose";
 import { Organization, ProviderType, OrganizationType, InstallationStatus } from "@/src/lib/database/models";
@@ -52,6 +52,7 @@ declare module "next-auth" {
       type: string;
       provider: string;
     };
+    organizationsUpdatedAt?: number;
   }
   interface User {
     githubUsername?: string;
@@ -163,12 +164,11 @@ export async function saveGitHubOAuthInfo(
       // The username will be stored in the JWT token via the jwt callback
       user.githubUsername = githubUsername;
     }
-
     // Update the account record with GitHub-specific information
     if (user.id && (githubOrgId || githubUsername)) {
       try {
         const client = await clientPromise;
-        const db = client.db('test'); // Use your database name
+        const db = client.db(database.databaseName);
         const accountsCollection = db.collection('accounts');
 
         await accountsCollection.updateOne(
@@ -285,15 +285,18 @@ export const authOptions: NextAuthOptions = {
         },
       },
     }),
-    GitlabProvider({
-      clientId: env.GITLAB_CLIENT_ID,
-      clientSecret: env.GITLAB_CLIENT_SECRET,
-      authorization: {
-        params: {
-          scope: "read_user read_api read_repository api", 
+    // Only include GitLab provider if credentials are available
+    ...(env.GITLAB_CLIENT_ID && env.GITLAB_CLIENT_SECRET ? [
+      GitlabProvider({
+        clientId: env.GITLAB_CLIENT_ID,
+        clientSecret: env.GITLAB_CLIENT_SECRET,
+        authorization: {
+          params: {
+            scope: "read_user read_api read_repository api",
+          },
         },
-      },
-    }),
+      })
+    ] : []),
     // Add more providers as needed
     // AzureADProvider, etc.
   ],
@@ -347,11 +350,15 @@ export const authOptions: NextAuthOptions = {
         }
       }
 
-      // Refresh organization data on each token refresh
-      if (token.uid) {
+      // Refresh organization data only when needed (e.g., on login or every N minutes)
+      const shouldRefreshOrgs = user || !token.organizations ||
+        (token.organizationsUpdatedAt && Date.now() - (token.organizationsUpdatedAt as number) > 5 * 60 * 1000);
+
+      if (token.uid && shouldRefreshOrgs) {
         try {
           const organizations = await getUserOrganizations(token.uid as string);
           token.organizations = organizations;
+          token.organizationsUpdatedAt = Date.now();
 
           // Set current organization (first active one or first one)
           const currentOrg = organizations.find(org => org.installationStatus === 'active') || organizations[0];
@@ -368,7 +375,6 @@ export const authOptions: NextAuthOptions = {
           token.currentOrganization = undefined;
         }
       }
-
       return token;
     },
     redirect: async ({ url, baseUrl }) => {

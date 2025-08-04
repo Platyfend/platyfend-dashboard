@@ -228,39 +228,156 @@ OrganizationSchema.pre('save', function(next) {
 });
 
 // Instance methods
-OrganizationSchema.methods.addRepository = function(repository: Omit<IRepository, 'added_at' | 'last_sync'>) {
+OrganizationSchema.methods.addRepository = async function(repository: Omit<IRepository, 'added_at' | 'last_sync'>) {
+  const Model = this.constructor as mongoose.Model<IOrganization>;
+  const currentTime = new Date();
+
+  // First, try to update existing repository atomically
+  const updateResult = await Model.findOneAndUpdate(
+    {
+      _id: this._id,
+      'repos.repo_id': repository.repo_id
+    },
+    [
+      {
+        $set: {
+          'repos.$[elem].name': repository.name,
+          'repos.$[elem].full_name': repository.full_name,
+          'repos.$[elem].private': repository.private,
+          'repos.$[elem].installation_id': repository.installation_id,
+          'repos.$[elem].permissions': repository.permissions,
+          'repos.$[elem].last_sync': currentTime,
+          'repos.$[elem].description': repository.description,
+          'repos.$[elem].language': repository.language,
+          'repos.$[elem].stars': repository.stars,
+          'repos.$[elem].forks': repository.forks,
+          'repos.$[elem].default_branch': repository.default_branch,
+          'repos.$[elem].url': repository.url,
+          updated_at: currentTime
+        }
+      },
+      {
+        $set: {
+          total_repos: { $size: "$repos" },
+          public_repos: { $size: { $filter: { input: "$repos", cond: { $eq: ["$$this.private", false] } } } },
+          private_repos: { $size: { $filter: { input: "$repos", cond: { $eq: ["$$this.private", true] } } } }
+        }
+      }
+    ],
+    {
+      new: true,
+      runValidators: true,
+      arrayFilters: [{ 'elem.repo_id': repository.repo_id }]
+    }
+  );
+
+  // If repository was found and updated, return the updated document
+  if (updateResult) {
+    return updateResult;
+  }
+
+  // Repository doesn't exist, add it atomically
   const newRepo: IRepository = {
     ...repository,
-    added_at: new Date(),
-    last_sync: new Date(),
+    added_at: currentTime,
+    last_sync: currentTime,
   };
-  
-  // Check if repository already exists
-  const existingIndex = this.repos.findIndex((repo: IRepository) => repo.repo_id === repository.repo_id);
-  
-  if (existingIndex >= 0) {
-    // Update existing repository
-    this.repos[existingIndex] = { ...this.repos[existingIndex], ...newRepo, added_at: this.repos[existingIndex].added_at };
-  } else {
-    // Add new repository
-    this.repos.push(newRepo);
+
+  const addResult = await Model.findOneAndUpdate(
+    { _id: this._id },
+    [
+      {
+        $set: {
+          repos: { $concatArrays: ["$repos", [newRepo]] },
+          updated_at: currentTime,
+          total_repos: { $add: [{ $size: "$repos" }, 1] },
+          public_repos: {
+            $add: [
+              { $size: { $filter: { input: "$repos", cond: { $eq: ["$$this.private", false] } } } },
+              newRepo.private ? 0 : 1
+            ]
+          },
+          private_repos: {
+            $add: [
+              { $size: { $filter: { input: "$repos", cond: { $eq: ["$$this.private", true] } } } },
+              newRepo.private ? 1 : 0
+            ]
+          }
+        }
+      }
+    ],
+    {
+      new: true,
+      runValidators: true
+    }
+  );
+
+  if (!addResult) {
+    throw new Error('Failed to add repository: Organization not found');
   }
-  
-  return this.save();
+
+  return addResult;
 };
 
-OrganizationSchema.methods.removeRepository = function(repoId: string) {
-  this.repos = this.repos.filter((repo: IRepository) => repo.repo_id !== repoId);
-  return this.save();
+OrganizationSchema.methods.removeRepository = async function(repoId: string) {
+  const Model = this.constructor as mongoose.Model<IOrganization>;
+
+  const result = await Model.findOneAndUpdate(
+    { _id: this._id },
+    [
+      {
+        $set: {
+          repos: { $filter: { input: "$repos", cond: { $ne: ["$$this.repo_id", repoId] } } },
+          updated_at: new Date()
+        }
+      },
+      {
+        $set: {
+          total_repos: { $size: "$repos" },
+          public_repos: { $size: { $filter: { input: "$repos", cond: { $eq: ["$$this.private", false] } } } },
+          private_repos: { $size: { $filter: { input: "$repos", cond: { $eq: ["$$this.private", true] } } } }
+        }
+      }
+    ],
+    {
+      new: true,
+      runValidators: true
+    }
+  );
+
+  if (!result) {
+    throw new Error('Failed to remove repository: Organization not found');
+  }
+
+  return result;
 };
 
-OrganizationSchema.methods.updateRepositorySync = function(repoId: string) {
-  const repo = this.repos.find((repo: IRepository) => repo.repo_id === repoId);
-  if (repo) {
-    repo.last_sync = new Date();
-    return this.save();
+OrganizationSchema.methods.updateRepositorySync = async function(repoId: string) {
+  const Model = this.constructor as mongoose.Model<IOrganization>;
+
+  const result = await Model.findOneAndUpdate(
+    {
+      _id: this._id,
+      'repos.repo_id': repoId
+    },
+    {
+      $set: {
+        'repos.$.last_sync': new Date(),
+        updated_at: new Date()
+      }
+    },
+    {
+      new: true,
+      runValidators: true
+    }
+  );
+
+  // If repository was not found, return the current document unchanged
+  if (!result) {
+    return this;
   }
-  return Promise.resolve(this);
+
+  return result;
 };
 
 // Static methods

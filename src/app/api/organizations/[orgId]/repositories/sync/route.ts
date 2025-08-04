@@ -73,7 +73,7 @@ export async function POST(
 
         // Add new repositories
         for (const repo of reposToAdd) {
-            const repoData: any = {
+            const repoData: Partial<IRepository> = {
                 repo_id: repo.id.toString(),
                 name: repo.name,
                 full_name: repo.full_name,

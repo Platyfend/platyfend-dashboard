@@ -171,7 +171,7 @@ export function RepositoryList({
                       className="h-6 w-6 p-0"
                       onClick={(e) => {
                         e.stopPropagation();
-                        window.open(repo.url, '_blank');
+                        window.open(repo.url, '_blank', 'noopener,noreferrer');
                       }}
                     >
                       <ExternalLink className="h-3 w-3" />

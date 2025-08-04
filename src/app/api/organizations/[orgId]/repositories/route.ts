@@ -2,6 +2,7 @@ import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/src/features/auth/lib/auth-config";
 import { NextResponse } from "next/server";
 import { getDatabase } from "@/src/lib/database/client";
+import { database } from "@/src/lib/config/environment";
 import { ObjectId } from "mongodb";
 
 export async function GET(
@@ -18,7 +19,7 @@ export async function GET(
     const { orgId } = await params;
 
     // Get database connection
-    const db = await getDatabase('test');
+    const db = await getDatabase(database.databaseName);
 
       const accounts = await db.collection('accounts').find({
         userId: new ObjectId(session.user.id)

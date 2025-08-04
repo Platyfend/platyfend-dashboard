@@ -155,9 +155,8 @@ export class RepositorySyncService {
         throw new Error(`Organization not found: ${organizationId}`);
       }
 
-      // Get repository from GitHub
-      const githubRepos = await this.fetchGitHubRepositories(organization.installation_id);
-      const githubRepo = githubRepos.find((repo: RepositoryMetadata) => repo.repo_id === repoId);
+      // Get single repository from GitHub (efficient API call)
+      const githubRepo = await this.fetchSingleGitHubRepository(organization.installation_id, repoId);
 
       if (!githubRepo) {
         // Repository no longer exists, remove it
@@ -168,7 +167,7 @@ export class RepositorySyncService {
 
       // Check if repository exists in organization
       const existingRepo = organization.repos.find((repo: IRepository) => repo.repo_id === repoId);
-      
+
       if (existingRepo) {
         // Update existing repository
         await this.updateRepositoryMetadata(organization, githubRepo);
@@ -193,7 +192,7 @@ export class RepositorySyncService {
   private async fetchGitHubRepositories(installationId: string): Promise<RepositoryMetadata[]> {
     try {
       const repositories = await githubAppAuth.getInstallationRepositories(installationId);
-      
+
       return repositories.map((repo: any) => ({
         repo_id: repo.id.toString(),
         name: repo.name,
@@ -211,6 +210,39 @@ export class RepositorySyncService {
 
     } catch (error) {
       console.error(`Failed to fetch repositories for installation ${installationId}:`, error);
+      throw new Error(`GitHub API error: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  /**
+   * Fetch a single repository from GitHub App installation
+   * Returns null if repository is not found (404), throws for other errors
+   */
+  private async fetchSingleGitHubRepository(installationId: string, repoId: string): Promise<RepositoryMetadata | null> {
+    try {
+      const repo = await githubAppAuth.getSingleRepository(installationId, repoId);
+
+      if (!repo) {
+        return null;
+      }
+
+      return {
+        repo_id: repo.id.toString(),
+        name: repo.name,
+        full_name: repo.full_name,
+        private: repo.private,
+        description: repo.description || undefined,
+        language: repo.language || undefined,
+        stars: repo.stargazers_count || 0,
+        forks: repo.forks_count || 0,
+        default_branch: repo.default_branch || 'main',
+        url: repo.html_url,
+        installation_id: installationId,
+        permissions: repo.permissions ? Object.keys(repo.permissions) : ['read']
+      };
+
+    } catch (error) {
+      console.error(`Failed to fetch repository ${repoId} for installation ${installationId}:`, error);
       throw new Error(`GitHub API error: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }

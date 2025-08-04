@@ -11,6 +11,17 @@ import { AddRepositoriesButton } from "@/src/components/dashboard/add-repositori
 import { RepositoryCard } from "@/src/components/dashboard/repository-list"
 import { getProviderDisplayName } from "@/src/lib/utils/provider"
 
+// Type guard to safely convert string to installation status
+function isValidInstallationStatus(status: string | undefined): status is 'active' | 'pending' | 'suspended' | 'deleted' {
+  return status === 'active' || status === 'pending' || status === 'suspended' || status === 'deleted';
+}
+
+// Safe converter function for installation status
+function toInstallationStatus(status: string | undefined): 'active' | 'pending' | 'suspended' | 'deleted' | undefined {
+  if (!status) return undefined;
+  return isValidInstallationStatus(status) ? status : undefined;
+}
+
 export function DashboardPage() {
   const router = useRouter()
   const currentOrgId = useCurrentOrganization()
@@ -145,7 +156,7 @@ export function DashboardPage() {
                 <p className="text-sm text-gray-400 mt-1">Install the {getProviderDisplayName(currentOrganization?.provider)} app to connect repositories</p>
                 <AddRepositoriesButton
                   organizationId={currentOrganization?.id}
-                  installationStatus={orgReposData?.organization?.installationStatus as any}
+                  installationStatus={toInstallationStatus(orgReposData?.organization?.installationStatus)}
                   provider={currentOrganization?.provider}
                   className="mt-4 bg-[#00617b] hover:bg-[#004a5c] text-white shadow-sm"
                 />

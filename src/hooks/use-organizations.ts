@@ -10,6 +10,7 @@ export interface Organization {
   description?: string;
   publicRepos?: number;
   path?: string;
+  installationStatus?: 'active' | 'pending' | 'suspended' | 'deleted';
 }
 
 export interface OrganizationsResponse {

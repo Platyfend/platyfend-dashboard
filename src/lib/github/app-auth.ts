@@ -217,6 +217,38 @@ export class GitHubAppAuth {
       );
     }
   }
+
+  /**
+   * Check if a single repository exists and is accessible to the installation
+   * Returns the repository data if found, null if not found (404), throws for other errors
+   */
+  async getSingleRepository(installationId: string, repoId: string) {
+    try {
+      const { headers } = await this.createAPIClient(installationId);
+      const response = await fetch(
+        `https://api.github.com/repositories/${repoId}`,
+        { headers }
+      );
+
+      if (response.status === 404) {
+        // Repository not found or not accessible to this installation
+        return null;
+      }
+
+      if (!response.ok) {
+        throw new Error(`Failed to get repository: ${response.status} ${response.statusText}`);
+      }
+
+      return await response.json();
+    } catch (error) {
+      if (error instanceof Error && error.message.includes('404')) {
+        return null;
+      }
+      throw new Error(
+        `Failed to get repository ${repoId}: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
+    }
+  }
 }
 
 // Singleton instance

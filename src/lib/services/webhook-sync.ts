@@ -281,7 +281,9 @@ export class WebhookSyncService {
           default_branch: repo.default_branch || 'main',
           url: repo.html_url,
           installation_id: installationId,
-          permissions: ['read'] // Default permissions for webhook events
+          permissions: repo.permissions
+            ? Object.keys(repo.permissions).filter(p => repo.permissions[p])
+            : ['read']
         };
 
         await organization.addRepository(repoData);

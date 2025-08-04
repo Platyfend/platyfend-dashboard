@@ -9,6 +9,17 @@ import { AddRepositoriesButton } from "@/src/components/dashboard/add-repositori
 import { RepositoryList } from "@/src/components/dashboard/repository-list";
 import { getProviderDisplayName } from "@/src/lib/utils/provider";
 
+// Type guard to safely convert string to installation status
+function isValidInstallationStatus(status: string | undefined): status is 'active' | 'pending' | 'suspended' | 'deleted' {
+  return status === 'active' || status === 'pending' || status === 'suspended' || status === 'deleted';
+}
+
+// Safe converter function for installation status
+function toInstallationStatus(status: string | undefined): 'active' | 'pending' | 'suspended' | 'deleted' | undefined {
+  if (!status) return undefined;
+  return isValidInstallationStatus(status) ? status : undefined;
+}
+
 // Main Repositories Page Component
 interface RepositoriesPageProps {
   organizationId: string;
@@ -47,7 +58,7 @@ export function RepositoriesPage({ organizationId }: RepositoriesPageProps) {
           </div>
           <AddRepositoriesButton
             organizationId={organizationId}
-            installationStatus={currentOrg?.installationStatus as any}
+            installationStatus={toInstallationStatus(currentOrg?.installationStatus)}
             provider={currentOrg?.provider}
           />
         </div>
@@ -80,7 +91,7 @@ export function RepositoriesPage({ organizationId }: RepositoriesPageProps) {
         </div>
         <AddRepositoriesButton
           organizationId={organizationId}
-          installationStatus={currentOrg?.installationStatus as any}
+          installationStatus={toInstallationStatus(currentOrg?.installationStatus)}
           provider={currentOrg?.provider}
         />
       </div>

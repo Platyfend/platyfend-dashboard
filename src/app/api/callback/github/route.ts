@@ -86,9 +86,6 @@ export async function GET(request: NextRequest) {
             organization.public_repos = installation.account.public_repos || 0
             organization.total_repos = repositories.length
             organization.updated_at = new Date()
-
-            // Clear existing repos and add new ones
-            organization.repos = []
         } else {
             // Create new organization
             organization = new Organization({
@@ -138,14 +135,18 @@ export async function GET(request: NextRequest) {
 
         return NextResponse.redirect(redirectUrl.toString())
 
-    } catch (error) {
+    }catch (error) {
         console.error('GitHub installation callback error:', error)
 
         // Redirect to dashboard with error message
         const redirectUrl = new URL('/dashboard', request.url)
         redirectUrl.searchParams.set('installation', 'error')
-        redirectUrl.searchParams.set('message', error instanceof Error ? error.message : 'Unknown error')
+        // Use generic error codes instead of exposing error details
+        const errorCode =
+            error instanceof Error && error.message.includes('rate limit')
+                ? 'rate_limit'
+                : 'installation_failed'
+        redirectUrl.searchParams.set('error_code', errorCode)
 
         return NextResponse.redirect(redirectUrl.toString())
-    }
-}
+    }}

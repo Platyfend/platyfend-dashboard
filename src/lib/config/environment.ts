@@ -7,6 +7,7 @@ const envSchema = z.object({
   
   // Database
   MONGODB_URI: z.string().url(),
+  MONGODB_DATABASE_NAME: z.string().min(1).default('platyfend'),
   
   // NextAuth
   NEXTAUTH_URL: z.string().url(),
@@ -31,9 +32,8 @@ const envSchema = z.object({
   }),
   GITHUB_APP_NAME: z.string().min(1).default('platyfend'),
   GITHUB_WEBHOOK_SECRET: z.string().min(1),
-
   // GitLab OAuth (optional for development)
-  GITLAB_CLIENT_ID: z.string().optional().default('placeholder'),
+  GITLAB_CLIENT_ID: z.string().optional(),
   GITLAB_CLIENT_SECRET: z.string().optional().default('placeholder'),
 
   GITLAB_APP_NAME: z.string().optional().default('platyfend'),
@@ -82,6 +82,7 @@ export const features = {
 // Database configuration
 export const database = {
   mongoUri: env.MONGODB_URI,
+  databaseName: env.MONGODB_DATABASE_NAME,
   // Add connection pooling for production
   connectionLimit: isProduction ? 10 : 5,
 } as const

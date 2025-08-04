@@ -40,33 +40,13 @@ export function useCurrentOrganization(): string | null {
  * @returns The current organization object or null if none is found
  */
 export function useCurrentOrganizationData(): Organization | null {
-  const pathname = usePathname();
+  const currentOrgId = useCurrentOrganization();
   const { data: organizationsData } = useOrganizations();
 
-  // Extract organization ID from URL pattern: /dashboard/[orgId]/...
-  const pathSegments = pathname.split('/');
-
-  // If we're on the main dashboard page (/dashboard), return the current organization from MongoDB
-  if (pathname === '/dashboard') {
-    // Get the current organization from the database data
-    return organizationsData?.organizations?.find(org => org.isCurrent) || null;
+  if (!currentOrgId || !organizationsData?.organizations) {
+    return null;
   }
 
-  // If we have a specific orgId in the URL, validate it against the database
-  if (pathSegments.length >= 3 && pathSegments[1] === 'dashboard') {
-    const urlOrgId = pathSegments[2];
-
-    // Find the organization by ID from MongoDB data
-    const urlOrg = organizationsData?.organizations?.find(org => org.id === urlOrgId);
-
-    if (urlOrg) {
-      return urlOrg;
-    }
-
-    // If the URL org doesn't exist, fallback to current organization from database
-    return organizationsData?.organizations?.find(org => org.isCurrent) || null;
-  }
-
-  // Return null if no organization in URL and no current organization
-  return null;
+  // Find the organization object by ID
+  return organizationsData.organizations.find(org => org.id === currentOrgId) || null;
 }
