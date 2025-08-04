@@ -1,7 +1,7 @@
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/src/features/auth/lib/auth-config";
 import { NextResponse } from "next/server";
-import client from "@/src/lib/database/client";
+import { getDatabase } from "@/src/lib/database/client";
 import { ObjectId } from "mongodb";
 
 export async function GET(
@@ -17,13 +17,12 @@ export async function GET(
 
     const { orgId } = await params;
 
-    // Connect to database and get all connected accounts
-    await client.connect();
-    const db = client.db('test');
+    // Get database connection
+    const db = await getDatabase('test');
 
-    const accounts = await db.collection('accounts').find({
-      userId: new ObjectId(session.user.id)
-    }).toArray();
+      const accounts = await db.collection('accounts').find({
+        userId: new ObjectId(session.user.id)
+      }).toArray();
 
     const allRepositories = [];
     const connectedProviders = [];
@@ -37,8 +36,8 @@ export async function GET(
         let orgName: string | null = null;
 
         // Determine API URL based on orgId
-        if (orgId === 'personal') {
-          // Fetch user's personal repositories
+        if (orgId === 'personal' || orgId === githubAccount.githubOrgId) {
+          // Fetch user's personal repositories (handle both 'personal' and actual GitHub user ID)
           apiUrl = 'https://api.github.com/user/repos?per_page=100&sort=updated&affiliation=owner';
         } else if (orgId.startsWith('github-')) {
           // Extract GitHub org ID and fetch org repositories
@@ -187,30 +186,30 @@ export async function GET(
     if (!gitlabAccount) missingProviders.push('gitlab');
     if (!githubAccount) missingProviders.push('github');
 
-    // Sort repositories by last activity
-    allRepositories.sort((a, b) => 
-      new Date(b.lastActivity).getTime() - new Date(a.lastActivity).getTime()
-    );
+      // Sort repositories by last activity
+      allRepositories.sort((a, b) =>
+        new Date(b.lastActivity).getTime() - new Date(a.lastActivity).getTime()
+      );
 
-    return NextResponse.json({
-      repositories: allRepositories,
-      totalCount: allRepositories.length,
-      connectedProviders,
-      missingProviders,
-      errors: errors.length > 0 ? errors : undefined,
-      organizationId: orgId,
-      user: {
-        id: session.user.id,
-        email: session.user.email,
-        name: session.user.name
-      }
-    });
+      return NextResponse.json({
+        repositories: allRepositories,
+        totalCount: allRepositories.length,
+        connectedProviders,
+        missingProviders,
+        errors: errors.length > 0 ? errors : undefined,
+        organizationId: orgId,
+        user: {
+          id: session.user.id,
+          email: session.user.email,
+          name: session.user.name
+        }
+      });
 
   } catch (error: any) {
     console.error("Available repositories API error:", error);
-    return NextResponse.json({ 
+    return NextResponse.json({
       error: "Failed to fetch available repositories",
-      details: error.message 
+      details: error.message
     }, { status: 500 });
   }
 }

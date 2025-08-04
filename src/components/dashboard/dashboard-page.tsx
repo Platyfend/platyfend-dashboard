@@ -3,18 +3,28 @@
 import { useRouter } from "next/navigation"
 import { Button } from "@/src/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/src/components/ui/card"
-import { Badge } from "@/src/components/ui/badge"
-import { Avatar, AvatarFallback } from "@/src/components/ui/avatar"
+
 import { MessageSquare, Settings, Users, BarChart3 } from "lucide-react"
+import { useCurrentOrganization } from "@/src/hooks/use-current-organization"
+import { useRepositoryStats, useCurrentOrganizationRepos, useUserOrganizations } from "@/src/hooks/use-organization-repos"
+import { AddRepositoriesButton } from "@/src/components/dashboard/add-repositories-button"
+import { RepositoryCard } from "@/src/components/dashboard/repository-list"
+import { getProviderDisplayName } from "@/src/lib/utils/provider"
 
 export function DashboardPage() {
-  const repositories: any[] = []
-  const stats = {
-    totalRepositories: repositories.length,
-    activeReviews: 0,
-    completedReviews: 0
-  }
   const router = useRouter()
+  const currentOrgId = useCurrentOrganization()
+  const { currentOrganization } = useUserOrganizations()
+  const repositoryStats = useRepositoryStats()
+  const { data: orgReposData, isLoading: isLoadingRepos } = useCurrentOrganizationRepos()
+
+  const stats = {
+    totalRepositories: repositoryStats.totalRepos,
+    activeReviews: 0,
+    completedReviews: 0,
+    activeInstallations: repositoryStats.activeInstallations,
+    pendingInstallations: repositoryStats.pendingInstallations
+  }
 
   return (
     <div className="space-y-6 sm:space-y-8">
@@ -31,7 +41,7 @@ export function DashboardPage() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-6 sm:mb-8">
         <Card
           className="cursor-pointer hover:shadow-lg transition-all duration-200 border-gray-200 bg-white hover:border-[#00617b]/30 hover:shadow-[#00617b]/10"
-          onClick={() => router.push("/dashboard/personal/repositories")}
+          onClick={() => router.push(currentOrgId ? `/dashboard/${currentOrgId}/repositories` : "/dashboard/personal/repositories")}
         >
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium text-gray-600">Repositories</CardTitle>
@@ -104,41 +114,27 @@ export function DashboardPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            {repositories.length > 0 ? (
+            {isLoadingRepos ? (
+              <div className="text-center py-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#00617b] mx-auto"></div>
+                <p className="text-sm text-gray-500 mt-2">Loading repositories...</p>
+              </div>
+            ) : orgReposData?.repositories && orgReposData.repositories.length > 0 ? (
               <div className="space-y-4">
-                {repositories.slice(0, 3).map((repo) => (
-                  <div
+                {orgReposData.repositories.slice(0, 3).map((repo) => (
+                  <RepositoryCard
                     key={repo.id}
-                    className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-3 sm:p-4 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer transition-colors space-y-2 sm:space-y-0"
-                    onClick={() => router.push(`/dashboard/repositories/${repo.id}`)}
-                  >
-                    <div className="flex items-center space-x-3 flex-1">
-                      <Avatar className="h-8 w-8 sm:h-10 sm:w-10 flex-shrink-0">
-                        <AvatarFallback className="bg-[#00617b]/10 text-[#00617b] text-sm">
-                          {repo.name.charAt(0).toUpperCase()}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div className="min-w-0 flex-1">
-                        <p className="font-medium text-sm sm:text-base text-gray-800 truncate">{repo.name}</p>
-                        <p className="text-xs sm:text-sm text-gray-400">
-                          {repo.reviews || 0} reviews
-                        </p>
-                      </div>
-                    </div>
-                    <div className="flex items-center space-x-2 flex-shrink-0">
-                      <Badge variant="outline" className="text-xs border-gray-300 text-gray-600">
-                        {repo.language || "JavaScript"}
-                      </Badge>
-                    </div>
-                  </div>
+                    repository={repo}
+                    onClick={(repo) => router.push(`/dashboard/repository/${repo.id}`)}
+                  />
                 ))}
-                {repositories.length > 3 && (
+                {orgReposData.repositories.length > 3 && (
                   <Button
                     variant="outline"
                     className="w-full mt-4 border-gray-300 text-gray-600 hover:bg-gray-50"
-                    onClick={() => router.push("/dashboard/personal/repositories")}
+                    onClick={() => router.push(currentOrgId ? `/dashboard/${currentOrgId}/repositories` : "/dashboard/personal/repositories")}
                   >
-                    View All Repositories ({repositories.length})
+                    View All Repositories ({orgReposData.repositories.length})
                   </Button>
                 )}
               </div>
@@ -146,13 +142,13 @@ export function DashboardPage() {
               <div className="text-center py-8">
                 <MessageSquare className="h-12 w-12 mx-auto mb-4 text-gray-300" />
                 <p className="text-gray-700 font-medium">No repositories yet</p>
-                <p className="text-sm text-gray-400 mt-1">Connect your first repository to get started</p>
-                <Button
-                  className="mt-4 bg-[#00617b] hover:bg-[#004a5c] text-white shadow-sm cursor-pointer"
-                  onClick={() => router.push("/dashboard/personal/repositories")}
-                >
-                  Connect Repository
-                </Button>
+                <p className="text-sm text-gray-400 mt-1">Install the {getProviderDisplayName(currentOrganization?.provider)} app to connect repositories</p>
+                <AddRepositoriesButton
+                  organizationId={currentOrganization?.id}
+                  installationStatus={orgReposData?.organization?.installationStatus as any}
+                  provider={currentOrganization?.provider}
+                  className="mt-4 bg-[#00617b] hover:bg-[#004a5c] text-white shadow-sm"
+                />
               </div>
             )}
           </CardContent>

@@ -3,7 +3,9 @@ import { MongoDBAdapter } from "@auth/mongodb-adapter";
 import GitHubProvider from "next-auth/providers/github";
 import GitlabProvider from "next-auth/providers/gitlab";
 import { env } from "@/src/lib/config/environment";
-import client from "@/src/lib/database/client";
+import clientPromise from "@/src/lib/database/client";
+import connectToDatabase from "@/src/lib/database/mongoose";
+import { Organization, ProviderType, OrganizationType, InstallationStatus } from "@/src/lib/database/models";
 
 declare module "next-auth" {
   interface Session {
@@ -16,11 +18,40 @@ declare module "next-auth" {
     };
     // make GitLab token available on the session object
     gitlabAccessToken?: string;
+    // Organization context
+    organizations?: Array<{
+      id: string;
+      name: string;
+      type: string;
+      provider: string;
+      installationStatus: string;
+      repoCount: number;
+    }>;
+    currentOrganization?: {
+      id: string;
+      name: string;
+      type: string;
+      provider: string;
+    };
   }
   interface JWT {
     uid?: string;
     gitlabAccessToken?: string;
     githubUsername?: string;
+    organizations?: Array<{
+      id: string;
+      name: string;
+      type: string;
+      provider: string;
+      installationStatus: string;
+      repoCount: number;
+    }>;
+    currentOrganization?: {
+      id: string;
+      name: string;
+      type: string;
+      provider: string;
+    };
   }
   interface User {
     githubUsername?: string;
@@ -30,7 +61,7 @@ declare module "next-auth" {
 export async function saveGitLabOAuthInfo(
   user: User,
   account: Account,
-  profile?: Profile
+  _profile?: Profile
 ): Promise<void> {
   try {
     // Validate required OAuth data
@@ -63,7 +94,7 @@ export async function saveGitLabOAuthInfo(
 }
 
 /**
- * Saves GitHub OAuth information for workspace and repository integration
+ * Saves GitHub OAuth information and creates initial organization record
  * This function handles the OAuth data received during GitHub authentication
  */
 export async function saveGitHubOAuthInfo(
@@ -81,8 +112,40 @@ export async function saveGitHubOAuthInfo(
       throw new Error("User email is required for GitHub integration");
     }
 
-    // Extract GitHub username from profile
+    // Extract GitHub username and organization info from profile
     const githubUsername = (profile as any)?.login || null;
+
+    // Fetch user's GitHub information to get organization ID
+    let githubOrgId = null;
+    if (account.access_token) {
+      try {
+        // Fetch user's GitHub profile to get the user ID (which serves as personal org ID)
+        const userResponse = await fetch('https://api.github.com/user', {
+          headers: {
+            'Authorization': `Bearer ${account.access_token}`,
+            'Accept': 'application/vnd.github.v3+json',
+            'User-Agent': 'Platyfend-Dashboard'
+          },
+        });
+
+        if (userResponse.ok) {
+          const githubUser = await userResponse.json();
+          githubOrgId = githubUser.id?.toString(); // GitHub user ID serves as personal org ID
+
+          console.log("GitHub user info fetched:", {
+            userId: user.id,
+            githubUserId: githubUser.id,
+            githubUsername: githubUser.login,
+            githubOrgId
+          });
+        } else {
+          console.warn("Failed to fetch GitHub user info:", userResponse.status);
+        }
+      } catch (fetchError) {
+        console.warn("Error fetching GitHub user info:", fetchError);
+        // Continue without org ID - not critical for authentication
+      }
+    }
 
     // Log successful OAuth data capture (without sensitive tokens)
     console.log("GitHub OAuth info captured for user:", {
@@ -91,7 +154,8 @@ export async function saveGitHubOAuthInfo(
       provider: account.provider,
       scope: account.scope,
       hasAccessToken: !!account.access_token,
-      githubUsername
+      githubUsername,
+      githubOrgId
     });
 
     // Store GitHub username in user object for session access
@@ -100,12 +164,42 @@ export async function saveGitHubOAuthInfo(
       user.githubUsername = githubUsername;
     }
 
-    // TODO: Implement workspace creation and GitHub integration
-    // This would typically involve:
-    // 1. Creating a default workspace for the user
-    // 2. Storing encrypted GitHub tokens for repository access
-    // 3. Setting up webhook configurations
-    // 4. Syncing user's GitHub organizations and repositories
+    // Update the account record with GitHub-specific information
+    if (user.id && (githubOrgId || githubUsername)) {
+      try {
+        const client = await clientPromise;
+        const db = client.db('test'); // Use your database name
+        const accountsCollection = db.collection('accounts');
+
+        await accountsCollection.updateOne(
+          {
+            userId: user.id,
+            provider: 'github',
+            providerAccountId: account.providerAccountId
+          },
+          {
+            $set: {
+              githubOrgId: githubOrgId,
+              githubUsername: githubUsername,
+              updatedAt: new Date()
+            }
+          }
+        );
+
+        console.log("GitHub account info updated successfully:", {
+          userId: user.id,
+          githubOrgId,
+          githubUsername
+        });
+      } catch (updateError) {
+        console.error("Error updating GitHub account info:", updateError);
+        // Don't throw - this is not critical for authentication
+      }
+    }
+
+    // Create initial personal organization record for the user
+    // This will have 0 repositories initially - repositories will be added via GitHub App installation
+    await createInitialOrganization(user.id, githubUsername, githubOrgId);
 
   } catch (error) {
     console.error("Error in saveGitHubOAuthInfo:", error);
@@ -113,8 +207,74 @@ export async function saveGitHubOAuthInfo(
   }
 }
 
+/**
+ * Creates initial personal organization record for GitHub user
+ * Repositories will be added later via GitHub App installation
+ */
+async function createInitialOrganization(
+  userId: string,
+  githubUsername: string | null,
+  githubOrgId: string | null
+): Promise<void> {
+  try {
+    if (!githubUsername || !githubOrgId) {
+      console.log("Missing GitHub username or org ID, skipping organization creation");
+      return;
+    }
+
+    // Connect to database
+    await connectToDatabase();
+
+    // Check if organization already exists
+    const existingOrg = await Organization.findOne({
+      user_id: userId,
+      org_id: githubOrgId,
+      provider: ProviderType.GITHUB
+    });
+
+    if (existingOrg) {
+      console.log(`Organization already exists for user ${userId} and GitHub org ${githubOrgId}`);
+      return;
+    }
+
+    // Create new personal organization record
+    const organization = new Organization({
+      org_id: githubOrgId,
+      user_id: userId,
+      provider: ProviderType.GITHUB,
+      org_name: githubUsername,
+      org_type: OrganizationType.PERSONAL,
+      installation_id: `pending-${Date.now()}`, // Temporary ID until GitHub App is installed
+      installation_status: InstallationStatus.PENDING,
+      permissions: {},
+      repos: [], // Start with 0 repositories
+      created_at: new Date(),
+      updated_at: new Date()
+    });
+
+    await organization.save();
+
+    console.log(`Created initial organization for user ${userId}:`, {
+      orgId: githubOrgId,
+      orgName: githubUsername,
+      repoCount: 0
+    });
+
+  } catch (error: any) {
+    console.error("Error creating initial organization:", error);
+    if (error.errors) {
+      console.error("Validation errors:", Object.keys(error.errors).map(key => ({
+        field: key,
+        message: error.errors[key].message,
+        value: error.errors[key].value
+      })));
+    }
+    // Don't throw - this is not critical for authentication
+  }
+}
+
 export const authOptions: NextAuthOptions = {
-  adapter: MongoDBAdapter(client),
+  adapter: MongoDBAdapter(clientPromise),
   providers: [
     GitHubProvider({
       clientId: env.GITHUB_CLIENT_ID,
@@ -172,6 +332,10 @@ export const authOptions: NextAuthOptions = {
       if (session?.user) {
         session.user.id = token.sub!;
         session.user.githubUsername = (token.githubUsername as string) || null;
+
+        // Add organization context to session
+        session.organizations = token.organizations as any;
+        session.currentOrganization = token.currentOrganization as any;
       }
       return session;
     },
@@ -182,6 +346,29 @@ export const authOptions: NextAuthOptions = {
           token.githubUsername = user.githubUsername;
         }
       }
+
+      // Refresh organization data on each token refresh
+      if (token.uid) {
+        try {
+          const organizations = await getUserOrganizations(token.uid as string);
+          token.organizations = organizations;
+
+          // Set current organization (first active one or first one)
+          const currentOrg = organizations.find(org => org.installationStatus === 'active') || organizations[0];
+          token.currentOrganization = currentOrg ? {
+            id: currentOrg.id,
+            name: currentOrg.name,
+            type: currentOrg.type,
+            provider: currentOrg.provider
+          } : undefined;
+        } catch (error) {
+          console.error("Error loading organizations in JWT callback:", error);
+          // Don't fail authentication if organization loading fails
+          token.organizations = [];
+          token.currentOrganization = undefined;
+        }
+      }
+
       return token;
     },
     redirect: async ({ url, baseUrl }) => {
@@ -201,3 +388,26 @@ export const authOptions: NextAuthOptions = {
     error: "/auth/error",
   },
 };
+
+/**
+ * Get user's organizations for session context
+ */
+async function getUserOrganizations(userId: string) {
+  try {
+    const organizations = await Organization.find({
+      user_id: userId
+    }).sort({ created_at: -1 });
+
+    return organizations.map(org => ({
+      id: org.org_id, // Use external org_id instead of MongoDB _id
+      name: org.org_name,
+      type: org.org_type,
+      provider: org.provider,
+      installationStatus: org.installation_status,
+      repoCount: org.repos.length
+    }));
+  } catch (error) {
+    console.error("Error fetching user organizations:", error);
+    return [];
+  }
+}

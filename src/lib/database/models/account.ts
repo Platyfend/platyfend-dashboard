@@ -49,6 +49,15 @@ const AccountSchema = new Schema<IAccount>(
       type: String,
       required: false,
     },
+    // GitHub-specific fields
+    githubOrgId: {
+      type: String,
+      required: false,
+    },
+    githubUsername: {
+      type: String,
+      required: false,
+    },
   },
   {
     timestamps: true,

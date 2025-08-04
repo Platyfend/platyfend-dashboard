@@ -16,12 +16,25 @@ const envSchema = z.object({
   GITHUB_CLIENT_ID: z.string().min(1),
   GITHUB_CLIENT_SECRET: z.string().min(1),
 
-  // GitHub App (optional)
-  GITHUB_APP_NAME: z.string().optional().default('platyfend'),
+  // GitHub App
+  GITHUB_APP_ID: z.string().min(1),
+  GITHUB_PRIVATE_KEY: z.string().min(1).transform((key) => {
+    // Handle both raw private key and base64 encoded private key
+    if (key.includes('-----BEGIN')) {
+      return key;
+    }
+    try {
+      return Buffer.from(key, 'base64').toString('utf8');
+    } catch {
+      throw new Error('Invalid GitHub App private key format');
+    }
+  }),
+  GITHUB_APP_NAME: z.string().min(1).default('platyfend'),
+  GITHUB_WEBHOOK_SECRET: z.string().min(1),
 
-  // GitLab OAuth
-  GITLAB_CLIENT_ID: z.string().min(1),
-  GITLAB_CLIENT_SECRET: z.string().min(1),
+  // GitLab OAuth (optional for development)
+  GITLAB_CLIENT_ID: z.string().optional().default('placeholder'),
+  GITLAB_CLIENT_SECRET: z.string().optional().default('placeholder'),
 
   GITLAB_APP_NAME: z.string().optional().default('platyfend'),
   
@@ -48,7 +61,7 @@ function validateEnv() {
         console.error(`  ${err.path.join('.')}: ${err.message}`)
       })
     }
-    process.exit(1)
+    throw new Error('Environment validation failed')
   }
 }
 

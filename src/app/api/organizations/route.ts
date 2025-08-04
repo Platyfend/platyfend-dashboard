@@ -1,122 +1,88 @@
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/src/features/auth/lib/auth-config";
 import { NextResponse } from "next/server";
-import client from "@/src/lib/database/client";
-import { ObjectId } from "mongodb";
+import connectToDatabase from "@/src/lib/database/mongoose";
+import { Organization } from "@/src/lib/database/models";
 
 export async function GET() {
   try {
     const session = await getServerSession(authOptions);
-    
+
     if (!session?.user) {
       return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
     }
 
-    // Connect to database and get all connected accounts
-    await client.connect();
-    const db = client.db('test');
+    // Connect to database with timeout and retry logic
+    console.log('🔄 Connecting to database for organizations API...');
+    let connection;
+    let retryCount = 0;
+    const maxRetries = 3;
 
-    const accounts = await db.collection('accounts').find({
-      userId: new ObjectId(session.user.id)
-    }).toArray();
+    while (retryCount < maxRetries) {
+      try {
+        connection = await connectToDatabase();
+        console.log('✅ Database connection established, readyState:', connection.readyState);
+        break;
+      } catch (error) {
+        retryCount++;
+        console.warn(`⚠️ Database connection attempt ${retryCount} failed:`, error);
+        if (retryCount >= maxRetries) {
+          throw new Error(`Failed to connect to database after ${maxRetries} attempts`);
+        }
+        // Wait before retrying (exponential backoff)
+        await new Promise(resolve => setTimeout(resolve, Math.pow(2, retryCount) * 1000));
+      }
+    }
 
-    const organizations = [];
-    const errors = [];
+    // Fetch user organizations from MongoDB with optimized query and timeout wrapper
+    console.log('🔍 Fetching user organizations for user:', session.user.id);
 
-    // Add personal organization (default workspace)
-    organizations.push({
-      id: 'personal',
-      name: session.user.githubUsername || session.user.name || 'Personal',
-      provider: 'github', // Default to github for personal
-      avatar: session.user.image,
-      isCurrent: true,
-      type: 'personal'
+    // Create a timeout promise to race against the query
+    const timeoutPromise = new Promise((_, reject) => {
+      setTimeout(() => reject(new Error('Query timeout after 25 seconds')), 25000);
     });
 
-    // Fetch GitHub organizations if connected
-    const githubAccount = accounts.find(acc => acc.provider === 'github');
-    if (githubAccount?.access_token) {
-      try {
-        // Fetch user's GitHub organizations
-        const orgsResponse = await fetch('https://api.github.com/user/orgs', {
-          headers: {
-            'Authorization': `Bearer ${githubAccount.access_token}`,
-            'Accept': 'application/vnd.github.v3+json',
-            'User-Agent': 'Platyfend-Dashboard'
-          },
-        });
-        
-        if (orgsResponse.ok) {
-          const orgs = await orgsResponse.json();
-          const githubOrgs = orgs.map((org: any) => ({
-            id: `github-${org.id}`,
-            name: org.login,
-            provider: 'github',
-            avatar: org.avatar_url,
-            isCurrent: false,
-            type: 'organization',
-            description: org.description,
-            publicRepos: org.public_repos
-          }));
-          
-          organizations.push(...githubOrgs);
-        } else {
-          errors.push({
-            provider: 'github',
-            error: `HTTP ${orgsResponse.status}: ${orgsResponse.statusText}`
-          });
-        }
-      } catch (error: any) {
-        errors.push({
-          provider: 'github',
-          error: error.message
-        });
-      }
+    const queryPromise = Organization.find({
+      user_id: session.user.id
+    })
+    .select('org_id org_name provider avatar_url org_type description public_repos installation_status repos')
+    .lean()
+    .maxTimeMS(30000) // MongoDB timeout
+    .hint({ user_id: 1, provider: 1 }) // Use the compound index
+    .exec();
+
+    const dbOrganizations = await Promise.race([queryPromise, timeoutPromise]) as any[];
+    console.log('✅ Found', dbOrganizations.length, 'organizations in database');
+
+    const organizations: any[] = [];
+    const errors: Array<{ provider: string; error: string }> = [];
+
+    // Convert database organizations to API format
+    for (const org of dbOrganizations) {
+      organizations.push({
+        id: org.org_id, // Use the external org_id (GitHub user/org ID)
+        name: org.org_name,
+        provider: org.provider,
+        avatar: org.avatar_url,
+        isCurrent: true, // For now, mark all as current - can be refined later
+        type: org.org_type,
+        description: org.description,
+        publicRepos: org.public_repos,
+        installationStatus: org.installation_status,
+        repoCount: org.repos?.length || 0
+      });
     }
 
-    // Fetch GitLab groups if connected
-    const gitlabAccount = accounts.find(acc => acc.provider === 'gitlab');
-    if (gitlabAccount?.access_token) {
-      try {
-        // Fetch user's GitLab groups
-        const groupsResponse = await fetch('https://gitlab.com/api/v4/groups?membership=true&per_page=50', {
-          headers: {
-            'Authorization': `Bearer ${gitlabAccount.access_token}`,
-          },
-        });
-        
-        if (groupsResponse.ok) {
-          const groups = await groupsResponse.json();
-          const gitlabOrgs = groups.map((group: any) => ({
-            id: `gitlab-${group.id}`,
-            name: group.name,
-            provider: 'gitlab',
-            avatar: group.avatar_url,
-            isCurrent: false,
-            type: 'organization',
-            description: group.description,
-            path: group.path
-          }));
-          
-          organizations.push(...gitlabOrgs);
-        } else {
-          errors.push({
-            provider: 'gitlab',
-            error: `HTTP ${groupsResponse.status}: ${groupsResponse.statusText}`
-          });
-        }
-      } catch (error: any) {
-        errors.push({
-          provider: 'gitlab',
-          error: error.message
-        });
-      }
-    }
+    // For now, we'll just return the organizations from the database
+    // In the future, we could add logic to sync with external APIs if needed
 
-    // Check what providers are missing
+    // Check what providers are missing (simplified for now)
     const missingProviders = [];
-    if (!gitlabAccount) missingProviders.push('gitlab');
-    if (!githubAccount) missingProviders.push('github');
+    const hasGitHub = dbOrganizations.some(org => org.provider === 'github');
+    const hasGitLab = dbOrganizations.some(org => org.provider === 'gitlab');
+
+    if (!hasGitHub) missingProviders.push('github');
+    if (!hasGitLab) missingProviders.push('gitlab');
 
     return NextResponse.json({
       organizations,
@@ -132,9 +98,38 @@ export async function GET() {
 
   } catch (error: any) {
     console.error("Organizations API error:", error);
-    return NextResponse.json({ 
+
+    // Check if it's a timeout or connection error
+    const isTimeoutError = error.message?.includes('timeout') ||
+                          error.message?.includes('buffering') ||
+                          error.name === 'MongooseError';
+
+    // Provide specific error information for debugging
+    const errorDetails = {
+      message: error.message,
+      name: error.name,
+      code: error.code,
+      isTimeout: isTimeoutError,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    };
+
+    // For timeout errors, return a more specific response
+    if (isTimeoutError) {
+      return NextResponse.json({
+        error: "Database connection timeout",
+        message: "The request took too long to process. Please try again.",
+        organizations: [], // Return empty array as fallback
+        totalCount: 0,
+        missingProviders: ['github', 'gitlab'],
+        details: errorDetails,
+        timestamp: new Date().toISOString()
+      }, { status: 503 }); // Service Unavailable
+    }
+
+    return NextResponse.json({
       error: "Failed to fetch organizations",
-      details: error.message 
+      details: errorDetails,
+      timestamp: new Date().toISOString()
     }, { status: 500 });
   }
 }
