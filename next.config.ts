@@ -1,7 +1,11 @@
 import {withSentryConfig} from "@sentry/nextjs";
-import createMDX from '@next/mdx'
 import withBundleAnalyzer from '@next/bundle-analyzer'
 import type { NextConfig } from "next";
+
+// Use process.env directly instead of importing from environment config
+// to avoid circular dependency during Next.js config loading
+const isProduction = process.env.NODE_ENV === 'production';
+const analyzeBundle = process.env.ANALYZE === 'true';
 
 const nextConfig: NextConfig = {
   /* config options here */
@@ -35,10 +39,9 @@ const nextConfig: NextConfig = {
     formats: ['image/webp', 'image/avif'], // Enable modern image formats
     minimumCacheTTL: 60, // Cache images for 1 minute minimum
   },
-  pageExtensions: ['js', 'jsx', 'mdx', 'ts', 'tsx'],
+  pageExtensions: ['js', 'jsx', 'ts', 'tsx'],
   compiler: {
-    styledComponents: true,
-    removeConsole: process.env.NODE_ENV === 'production', // Remove console.log in production
+    removeConsole: isProduction, // Remove console.log in production
   },
   experimental: {
     optimizePackageImports: ['lucide-react', '@radix-ui/react-icons'], // Optimize package imports
@@ -59,27 +62,19 @@ const nextConfig: NextConfig = {
   poweredByHeader: false,
 };
 
-const withMDX = createMDX({
-  // Add markdown plugins here, as desired
-  options: {
-    remarkPlugins: [],
-    rehypePlugins: [],
-  },
-})
-
 // Bundle analyzer configuration
 const bundleAnalyzer = withBundleAnalyzer({
-  enabled: process.env.ANALYZE === 'true',
+  enabled: analyzeBundle,
 })
 
 // Compose all the configurations
-const composedConfig = bundleAnalyzer(withMDX(nextConfig))
+const composedConfig = bundleAnalyzer(nextConfig)
 
 export default withSentryConfig(composedConfig, {
   // Sentry config remains the same
   org: "platyfend",
   project: "javascript-nextjs",
-  silent: !process.env.CI,
+  silent: !process.env.CI, // CI is not in our schema, keep as is
   widenClientFileUpload: true,
   disableLogger: true,
   automaticVercelMonitors: true,

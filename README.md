@@ -12,7 +12,7 @@ Platyfend is a comprehensive code review platform that leverages AI to provide i
 - 🔐 **Flexible Authentication**: Support for GitHub, GitLab, Azure DevOps, and Bitbucket
 - 🏢 **Workspaces**: Multi-tenant workspace management for teams and organizations
 - 🎨 **Modern UI**: Built with shadcn/ui components and Tailwind CSS
-- 🗄️ **Robust Database**: PostgreSQL with Prisma ORM for type-safe queries
+- 🗄️ **Robust Database**: MongoDB with Mongoose ODM
 - 🔒 **Enterprise Security**: Role-based access control and data encryption
 - 📱 **Responsive Design**: Optimized for desktop, tablet, and mobile devices
 
@@ -22,7 +22,7 @@ Platyfend is a comprehensive code review platform that leverages AI to provide i
 - **Language**: TypeScript
 - **UI Components**: shadcn/ui
 - **Styling**: Tailwind CSS
-- **Database**: PostgreSQL with Prisma ORM
+- **Database**: MongoDB with native client
 - **Authentication**: NextAuth.js
 - **State Management**: TanStack Query (React Query)
 - **Deployment**: Vercel-ready
@@ -32,7 +32,7 @@ Platyfend is a comprehensive code review platform that leverages AI to provide i
 ### Prerequisites
 
 - Node.js 18+ and npm
-- PostgreSQL database
+- MongoDB database
 - GitHub OAuth App (for authentication)
 
 ### Installation
@@ -56,9 +56,13 @@ Edit `.env` with your actual values (see Environment Variables section below).
 
 4. Set up the database:
 ```bash
+<<<<<<< HEAD
 npx prisma migrate dev
 npx prisma generate
 npm run prisma:studio
+=======
+# No migration needed for MongoDB
+>>>>>>> origin
 ```
 
 5. Run the development server:
@@ -74,7 +78,7 @@ Key variables that need to be configured in your `.env` file:
 
 | Variable | Description |
 |----------|-------------|
-| `DATABASE_URL` | PostgreSQL connection string |
+| `MONGODB_URI` | MongoDB connection string |
 | `NEXTAUTH_SECRET` | Random secret for NextAuth.js |
 | `NEXTAUTH_URL` | Base URL of your application |
 | `GITHUB_CLIENT_ID` | GitHub OAuth App client ID |
@@ -111,7 +115,7 @@ docker run -p 3001:3001 --env-file .env platyfend
 │   ├── ui/              # UI components from shadcn/ui
 │   └── ...              # Feature-specific components
 ├── lib/                 # Utilities and configurations
-├── prisma/              # Database schema and migrations
+├── src/lib/database/    # Database connection (MongoDB)
 ├── public/              # Static assets
 └── hooks/               # Custom React hooks
 ```
@@ -124,8 +128,7 @@ docker run -p 3001:3001 --env-file .env platyfend
 | `npm run build` | Build for production |
 | `npm run start` | Start production server |
 | `npm run lint` | Run ESLint |
-| `npm run prisma:studio` | Open Prisma Studio to manage database |
-| `npm run seed` | Seed the database with initial data |
+
 
 ## Contributing
 
