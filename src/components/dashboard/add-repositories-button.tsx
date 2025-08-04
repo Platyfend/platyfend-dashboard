@@ -7,7 +7,7 @@ import { useSession } from "next-auth/react";
 import { Alert, AlertDescription, AlertTitle } from "@/src/components/ui/alert";
 import { GitHubInstallationError, PermissionError, NetworkError } from "@/src/components/ui/error-boundary";
 import { getProviderDisplayName } from "@/src/lib/utils/provider";
-import { set } from "mongoose";
+
 
 interface AddRepositoriesButtonProps {
   organizationId?: string;
@@ -57,6 +57,7 @@ export function AddRepositoriesButton({
 
         const state = btoa(JSON.stringify(stateData)) // Base64 encode
 
+        //TODO: Make secure OAuth state flow and make the app name configurable
         // Direct redirect to GitHub's installation flow with state
         window.location.href = `https://github.com/apps/platyfend-test/installations/new/permissions?target_id=${organizationId}&state=${encodeURIComponent(state)}`;
       } catch (error) {

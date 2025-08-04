@@ -39,6 +39,7 @@ export async function GET(request: NextRequest) {
                 stateData = JSON.parse(Buffer.from(state, 'base64').toString())
             } catch (error) {
                 console.error('Error parsing state parameter:', error)
+                return NextResponse.redirect(new URL('/dashboard?error=invalid_state', request.url))
             }
         }
 
