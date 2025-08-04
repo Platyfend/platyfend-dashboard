@@ -20,15 +20,25 @@ export async function GET() {
       userId: new ObjectId(session.user.id)
     }).toArray();
 
-    const allRepositories = [];
-    const connectedProviders = [];
+    const organizations = [];
     const errors = [];
 
-    // Fetch from GitHub if connected
+    // Add personal organization (default workspace)
+    organizations.push({
+      id: 'personal',
+      name: session.user.githubUsername || session.user.name || 'Personal',
+      provider: 'github', // Default to github for personal
+      avatar: session.user.image,
+      isCurrent: true,
+      type: 'personal'
+    });
+
+    // Fetch GitHub organizations if connected
     const githubAccount = accounts.find(acc => acc.provider === 'github');
     if (githubAccount?.access_token) {
       try {
-        const response = await fetch('https://api.github.com/user/repos?per_page=100&sort=updated', {
+        // Fetch user's GitHub organizations
+        const orgsResponse = await fetch('https://api.github.com/user/orgs', {
           headers: {
             'Authorization': `Bearer ${githubAccount.access_token}`,
             'Accept': 'application/vnd.github.v3+json',
@@ -36,30 +46,24 @@ export async function GET() {
           },
         });
         
-        if (response.ok) {
-          const repos = await response.json();
-          const githubRepos = repos.map((repo: any) => ({
-            id: `github-${repo.id}`,
-            externalId: repo.id.toString(),
-            name: repo.name,
-            fullName: repo.full_name,
+        if (orgsResponse.ok) {
+          const orgs = await orgsResponse.json();
+          const githubOrgs = orgs.map((org: any) => ({
+            id: `github-${org.id}`,
+            name: org.login,
             provider: 'github',
-            isPrivate: repo.private,
-            language: repo.language,
-            stars: repo.stargazers_count || 0,
-            forks: repo.forks_count || 0,
+            avatar: org.avatar_url,
+            isCurrent: false,
+            type: 'organization',
+            description: org.description,
+            publicRepos: org.public_repos
           }));
           
-          allRepositories.push(...githubRepos);
-          connectedProviders.push({
-            provider: 'github',
-            accountName: githubAccount.providerAccountId,
-            repositoryCount: githubRepos.length
-          });
+          organizations.push(...githubOrgs);
         } else {
           errors.push({
             provider: 'github',
-            error: `HTTP ${response.status}: ${response.statusText}`
+            error: `HTTP ${orgsResponse.status}: ${orgsResponse.statusText}`
           });
         }
       } catch (error: any) {
@@ -70,41 +74,35 @@ export async function GET() {
       }
     }
 
-    // Fetch from GitLab if connected
+    // Fetch GitLab groups if connected
     const gitlabAccount = accounts.find(acc => acc.provider === 'gitlab');
     if (gitlabAccount?.access_token) {
       try {
-        const response = await fetch('https://gitlab.com/api/v4/projects?membership=true&per_page=100&order_by=last_activity_at', {
+        // Fetch user's GitLab groups
+        const groupsResponse = await fetch('https://gitlab.com/api/v4/groups?membership=true&per_page=50', {
           headers: {
             'Authorization': `Bearer ${gitlabAccount.access_token}`,
           },
         });
-            console.log("GitLab API response:", response.status, response.statusText);
         
-        if (response.ok) {
-          const projects = await response.json();
-          const gitlabRepos = projects.map((project: any) => ({
-            id: `gitlab-${project.id}`,
-            externalId: project.id.toString(),
-            name: project.name,
-            fullName: project.path_with_namespace,
+        if (groupsResponse.ok) {
+          const groups = await groupsResponse.json();
+          const gitlabOrgs = groups.map((group: any) => ({
+            id: `gitlab-${group.id}`,
+            name: group.name,
             provider: 'gitlab',
-            isPrivate: project.visibility === 'private',
-            language: project.default_branch || 'main',
-            stars: project.star_count || 0,
-            forks: project.forks_count || 0,
+            avatar: group.avatar_url,
+            isCurrent: false,
+            type: 'organization',
+            description: group.description,
+            path: group.path
           }));
           
-          allRepositories.push(...gitlabRepos);
-          connectedProviders.push({
-            provider: 'gitlab',
-            accountName: gitlabAccount.providerAccountId,
-            repositoryCount: gitlabRepos.length
-          });
+          organizations.push(...gitlabOrgs);
         } else {
           errors.push({
             provider: 'gitlab',
-            error: `HTTP ${response.status}: ${response.statusText}`
+            error: `HTTP ${groupsResponse.status}: ${groupsResponse.statusText}`
           });
         }
       } catch (error: any) {
@@ -120,15 +118,9 @@ export async function GET() {
     if (!gitlabAccount) missingProviders.push('gitlab');
     if (!githubAccount) missingProviders.push('github');
 
-    // Sort repositories by last activity
-    allRepositories.sort((a, b) => 
-      new Date(b.lastActivity).getTime() - new Date(a.lastActivity).getTime()
-    );
-
     return NextResponse.json({
-      repositories: allRepositories,
-      totalCount: allRepositories.length,
-      connectedProviders,
+      organizations,
+      totalCount: organizations.length,
       missingProviders,
       errors: errors.length > 0 ? errors : undefined,
       user: {
@@ -139,9 +131,9 @@ export async function GET() {
     });
 
   } catch (error: any) {
-    console.error("Available repositories API error:", error);
+    console.error("Organizations API error:", error);
     return NextResponse.json({ 
-      error: "Failed to fetch available repositories",
+      error: "Failed to fetch organizations",
       details: error.message 
     }, { status: 500 });
   }

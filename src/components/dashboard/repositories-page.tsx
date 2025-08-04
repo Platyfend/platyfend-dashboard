@@ -176,12 +176,16 @@ function VCSConnectionError({
 }
 
 // Repository List Component
-export function RepositoryList() {
+interface RepositoryListProps {
+  organizationId: string;
+}
+
+export function RepositoryList({ organizationId }: RepositoryListProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState("10");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
-  const { data: repositoriesData, isLoading, error } = useRepositories();
+  const { data: repositoriesData, isLoading, error } = useRepositories({ organizationId });
 
   useEffect(() => {
     setCurrentPage(1);
@@ -298,7 +302,9 @@ export function RepositoryList() {
             List of repositories accessible to Platyfend.
           </p>
         </div>
-        <Button className="shadow-sm w-full sm:w-auto">
+        <Button
+          className="shadow-sm w-full sm:w-auto cursor-pointer"
+        >
           <Plus className="w-4 h-4 mr-2" />
           Add Repositories
         </Button>
@@ -461,6 +467,10 @@ export function RepositoryList() {
 }
 
 // Export a page component that uses the repository list
-export function RepositoriesPage() {
-  return <RepositoryList />;
+interface RepositoriesPageProps {
+  organizationId: string;
+}
+
+export function RepositoriesPage({ organizationId }: RepositoriesPageProps) {
+  return <RepositoryList organizationId={organizationId} />;
 }

@@ -12,6 +12,7 @@ declare module "next-auth" {
       name?: string | null;
       email?: string | null;
       image?: string | null;
+      githubUsername?: string | null;
     };
     // make GitLab token available on the session object
     gitlabAccessToken?: string;
@@ -19,6 +20,10 @@ declare module "next-auth" {
   interface JWT {
     uid?: string;
     gitlabAccessToken?: string;
+    githubUsername?: string;
+  }
+  interface User {
+    githubUsername?: string;
   }
 }
 
@@ -64,7 +69,7 @@ export async function saveGitLabOAuthInfo(
 export async function saveGitHubOAuthInfo(
   user: User,
   account: Account,
-  profile?: Profile // Reserved for future use (GitHub profile data)
+  profile?: Profile
 ): Promise<void> {
   try {
     // Validate required OAuth data
@@ -76,14 +81,24 @@ export async function saveGitHubOAuthInfo(
       throw new Error("User email is required for GitHub integration");
     }
 
+    // Extract GitHub username from profile
+    const githubUsername = (profile as any)?.login || null;
+
     // Log successful OAuth data capture (without sensitive tokens)
     console.log("GitHub OAuth info captured for user:", {
       userId: user.id,
       email: user.email,
       provider: account.provider,
       scope: account.scope,
-      hasAccessToken: !!account.access_token
+      hasAccessToken: !!account.access_token,
+      githubUsername
     });
+
+    // Store GitHub username in user object for session access
+    if (githubUsername) {
+      // The username will be stored in the JWT token via the jwt callback
+      user.githubUsername = githubUsername;
+    }
 
     // TODO: Implement workspace creation and GitHub integration
     // This would typically involve:
@@ -156,12 +171,16 @@ export const authOptions: NextAuthOptions = {
     session: async ({ session, token }) => {
       if (session?.user) {
         session.user.id = token.sub!;
+        session.user.githubUsername = (token.githubUsername as string) || null;
       }
       return session;
     },
     jwt: async ({ user, token }) => {
       if (user) {
         token.uid = user.id;
+        if (user.githubUsername) {
+          token.githubUsername = user.githubUsername;
+        }
       }
       return token;
     },

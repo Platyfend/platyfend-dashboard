@@ -4,9 +4,14 @@
   "private": true,
   "scripts": {
     "dev": "next dev --turbopack --port 3001",
+    "dev:local": "NODE_ENV=development next dev --turbopack --port 3001",
+    "dev:prod": "NODE_ENV=production next dev --turbopack --port 3001",
     "build": "next build",
+    "build:dev": "NODE_ENV=development next build",
+    "build:prod": "NODE_ENV=production next build",
     "build:analyze": "ANALYZE=true next build",
     "start": "next start",
+    "start:prod": "NODE_ENV=production next start",
     "lint": "next lint",
     "lint:fix": "next lint --fix",
     "type-check": "tsc --noEmit"

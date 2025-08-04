@@ -47,7 +47,9 @@ export function UserDropdown() {
               </Avatar>
               <div className="grid flex-1 text-left text-sm leading-tight">
                 <span className="truncate font-semibold text-gray-900">{session?.user?.name || "User"}</span>
-                <span className="truncate text-xs text-gray-600">{session?.user?.email || "user@example.com"}</span>
+                <span className="truncate text-xs text-gray-600">
+                  {session?.user?.githubUsername ? `@${session.user.githubUsername}` : session?.user?.email || "user@example.com"}
+                </span>
               </div>
             </SidebarMenuButton>
           </DropdownMenuTrigger>
@@ -67,7 +69,9 @@ export function UserDropdown() {
                 </Avatar>
                 <div className="grid flex-1 text-left text-sm leading-tight">
                   <span className="truncate font-semibold text-gray-900">{session?.user?.name || "User"}</span>
-                  <span className="truncate text-xs text-gray-600">{session?.user?.email || "user@example.com"}</span>
+                  <span className="truncate text-xs text-gray-600">
+                    {session?.user?.githubUsername ? `@${session.user.githubUsername}` : session?.user?.email || "user@example.com"}
+                  </span>
                 </div>
               </div>
             </DropdownMenuLabel>

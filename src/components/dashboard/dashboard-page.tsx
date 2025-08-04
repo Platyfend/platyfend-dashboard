@@ -31,7 +31,7 @@ export function DashboardPage() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-6 sm:mb-8">
         <Card
           className="cursor-pointer hover:shadow-lg transition-all duration-200 border-gray-200 bg-white hover:border-[#00617b]/30 hover:shadow-[#00617b]/10"
-          onClick={() => router.push("/dashboard/repositories")}
+          onClick={() => router.push("/dashboard/personal/repositories")}
         >
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium text-gray-600">Repositories</CardTitle>
@@ -136,7 +136,7 @@ export function DashboardPage() {
                   <Button
                     variant="outline"
                     className="w-full mt-4 border-gray-300 text-gray-600 hover:bg-gray-50"
-                    onClick={() => router.push("/dashboard/repositories")}
+                    onClick={() => router.push("/dashboard/personal/repositories")}
                   >
                     View All Repositories ({repositories.length})
                   </Button>
@@ -149,7 +149,7 @@ export function DashboardPage() {
                 <p className="text-sm text-gray-400 mt-1">Connect your first repository to get started</p>
                 <Button
                   className="mt-4 bg-[#00617b] hover:bg-[#004a5c] text-white shadow-sm cursor-pointer"
-                  onClick={() => router.push("/dashboard/repositories")}
+                  onClick={() => router.push("/dashboard/personal/repositories")}
                 >
                   Connect Repository
                 </Button>

@@ -5,6 +5,7 @@ export interface User {
   name?: string | null;
   email?: string | null;
   image?: string | null;
+  githubUsername?: string | null;
 }
 
 export interface Session {

@@ -3,6 +3,7 @@
 import React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useCurrentOrganization } from "@/src/hooks/use-current-organization";
 import {
   Home,
   Settings,
@@ -13,8 +14,7 @@ import {
   Plug,
   BookOpen,
   HelpCircle,
-  Lock,
-  Menu
+  Lock
 } from "lucide-react";
 import {
   Sidebar,
@@ -27,20 +27,20 @@ import {
   SidebarMenu,
   SidebarMenuItem,
   SidebarMenuButton,
-  SidebarTrigger,
 } from "@/src/components/ui/sidebar";
 import { UserDropdown } from "./user-dropdown";
+import { OrganizationDropdown } from "@/src/components/dashboard/organization-dropdown";
 
-// Navigation Items
-const navigationItems = [
+// Navigation Items (will be made dynamic based on organization)
+const getNavigationItems = (orgId: string | null) => [
   { title: "Home", url: "/dashboard", icon: Home },
-  { title: "Repositories", url: "/dashboard/repositories", icon: GitBranch },
-  { title: "Dashboard", url: "/dashboard/overview", icon: LayoutDashboard, locked: true },
-  { title: "Integrations", url: "/dashboard/integrations", icon: Plug, locked: true },
-  { title: "Reports", url: "/dashboard/reports", icon: BarChart2, locked: true },
-  { title: "Learnings", url: "/dashboard/learnings", icon: BookOpen },
-  { title: "Organization Settings", url: "/dashboard/settings", icon: Settings },
-  { title: "Subscription", url: "/dashboard/subscription", icon: DollarSign },
+  { title: "Repositories", url: orgId ? `/dashboard/${orgId}/repositories` : "/dashboard/personal/repositories", icon: GitBranch },
+  { title: "Dashboard", url: orgId ? `/dashboard/${orgId}/overview` : "/dashboard/overview", icon: LayoutDashboard, locked: true },
+  { title: "Integrations", url: orgId ? `/dashboard/${orgId}/integrations` : "/dashboard/integrations", icon: Plug, locked: true },
+  { title: "Reports", url: orgId ? `/dashboard/${orgId}/reports` : "/dashboard/reports", icon: BarChart2, locked: true },
+  { title: "Learnings", url: orgId ? `/dashboard/${orgId}/learnings` : "/dashboard/learnings", icon: BookOpen },
+  { title: "Organization Settings", url: orgId ? `/dashboard/${orgId}/settings` : "/dashboard/settings", icon: Settings },
+  { title: "Subscription", url: orgId ? `/dashboard/${orgId}/subscription` : "/dashboard/subscription", icon: DollarSign },
 ];
 
 const bottomItems = [
@@ -50,10 +50,13 @@ const bottomItems = [
 
 export function DashboardSidebar() {
   const pathname = usePathname();
+  const currentOrgId = useCurrentOrganization();
+  const navigationItems = getNavigationItems(currentOrgId);
 
   return (
     <Sidebar className="shadow-sm border-r border-gray-200 flex-shrink-0 bg-white">
       <SidebarHeader className="border-b border-gray-200 pb-4 space-y-4">
+        <OrganizationDropdown />
       </SidebarHeader>
 
       <SidebarContent className="px-2 overflow-y-auto">

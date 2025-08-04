@@ -1,14 +1,16 @@
 import { useQuery } from "@tanstack/react-query";
 import { RepositoriesError, AvailableRepositoriesResponse } from "@/src/types/repositories";
 
+interface UseRepositoriesOptions {
+    organizationId: string;
+}
 
-
-export function useRepositories() {
+export function useRepositories({ organizationId }: UseRepositoriesOptions) {
     return useQuery<AvailableRepositoriesResponse, RepositoriesError>({
-        queryKey: ['repositories'],
+        queryKey: ['repositories', organizationId],
         queryFn: async () => {
-            // Fetch all available repositories from connected providers
-            const response = await fetch("/api/repositories")
+            // Fetch repositories for the specific organization
+            const response = await fetch(`/api/organizations/${organizationId}/repositories`)
             const data = await response.json()
 
             if (!response.ok) {
@@ -28,6 +30,7 @@ export function useRepositories() {
                 return false
             }
             return failureCount < 3
-        }
+        },
+        enabled: !!organizationId, // Only run query if organizationId is provided
     })
 }
