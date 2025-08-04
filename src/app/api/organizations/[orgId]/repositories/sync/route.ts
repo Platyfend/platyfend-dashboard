@@ -2,10 +2,25 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/src/features/auth/lib/auth-config'
 import { githubAppAuth } from '@/src/lib/github/app-auth'
-import { Organization, ProviderType, InstallationStatus } from '@/src/lib/database/models'
+import { Organization, ProviderType, InstallationStatus, IRepository } from '@/src/lib/database/models'
+
+// GitHub API repository type
+interface GitHubRepository {
+    id: number
+    name: string
+    full_name: string
+    private: boolean
+    description?: string
+    language?: string
+    stargazers_count?: number
+    forks_count?: number
+    default_branch?: string
+    html_url: string
+    permissions?: Record<string, boolean>
+}
 
 export async function POST(
-    request: NextRequest,
+    _request: NextRequest,
     { params }: { params: Promise<{ orgId: string }> }
 ) {
     try {
@@ -36,15 +51,15 @@ export async function POST(
         }
 
         // Get current repositories from GitHub
-        const repositories = await githubAppAuth.getInstallationRepositories(organization.installation_id)
+        const repositories: GitHubRepository[] = await githubAppAuth.getInstallationRepositories(organization.installation_id)
 
         // Get current repo IDs from organization
-        const currentRepoIds = new Set(organization.repos.map(repo => repo.repo_id))
-        const githubRepoIds = new Set(repositories.map(repo => repo.id.toString()))
+        const currentRepoIds = new Set<string>(organization.repos.map((repo: IRepository) => repo.repo_id))
+        const githubRepoIds = new Set<string>(repositories.map((repo: GitHubRepository) => repo.id.toString()))
 
         // Find repositories to add and remove
-        const reposToAdd = repositories.filter(repo => !currentRepoIds.has(repo.id.toString()))
-        const repoIdsToRemove = Array.from(currentRepoIds).filter(repoId => !githubRepoIds.has(repoId))
+        const reposToAdd = repositories.filter((repo: GitHubRepository) => !currentRepoIds.has(repo.id.toString()))
+        const repoIdsToRemove = Array.from(currentRepoIds).filter((repoId: string) => !githubRepoIds.has(repoId))
 
         let addedCount = 0
         let removedCount = 0
@@ -79,7 +94,7 @@ export async function POST(
         for (const repo of repositories) {
             const repoId = repo.id.toString()
             if (currentRepoIds.has(repoId)) {
-                const existingRepo = organization.repos.find(r => r.repo_id === repoId)
+                const existingRepo = organization.repos.find((r: IRepository) => r.repo_id === repoId)
                 if (existingRepo) {
                     // Update repository metadata
                     existingRepo.name = repo.name
@@ -99,8 +114,8 @@ export async function POST(
 
         // Update organization metadata
         organization.total_repos = repositories.length
-        organization.public_repos = repositories.filter(repo => !repo.private).length
-        organization.private_repos = repositories.filter(repo => repo.private).length
+        organization.public_repos = repositories.filter((repo: GitHubRepository) => !repo.private).length
+        organization.private_repos = repositories.filter((repo: GitHubRepository) => repo.private).length
         organization.updated_at = new Date()
 
         await organization.save()
@@ -133,7 +148,7 @@ export async function POST(
 }
 
 export async function GET(
-    request: NextRequest,
+    _request: NextRequest,
     { params }: { params: Promise<{ orgId: string }> }
 ) {
     try {
@@ -174,7 +189,7 @@ export async function GET(
                 privateRepos: organization.private_repos,
                 lastUpdated: organization.updated_at
             },
-            repositories: organization.repos.map(repo => ({
+            repositories: organization.repos.map((repo: IRepository) => ({
                 id: repo.repo_id,
                 name: repo.name,
                 fullName: repo.full_name,

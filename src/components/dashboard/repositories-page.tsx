@@ -17,7 +17,7 @@ interface RepositoriesPageProps {
 }
 
 export function RepositoriesPage({ organizationId }: RepositoriesPageProps) {
-  const { data: repositoriesData, isLoading, error } = useOrganizationRepos(organizationId);
+  const { data: repositoriesData, isLoading } = useOrganizationRepos(organizationId);
   const { mutate: syncRepositories, isPending: isSyncing } = useOrganizationRepoSync(organizationId);
   const { data: organizationsData } = useOrganizations();
 
